@@ -1,0 +1,54 @@
+datumgrd
+
+Program to fit a deformation grid to a set of point displacements. 
+The grid extends to a specified distance from the points.  The fitting
+balances two factors, 1) matching the point displacements, and 2)
+minimizing the distortion in each grid cell (ie shear and non-linear 
+distortion).
+
+Data file:
+    
+    Space separated file containing:
+    
+    	id east north deast dnorth class [error]
+    
+    east and north coordinates are in the same units as the final 
+    grid.  deast, dnorth in metres.  Command file defines a scale
+    factor from east/north coordinates to metres.  The error can 
+    be supplied, otherwise it will be based on a default error or
+    class based error defined in the command file.
+    
+    May contain comments prefixed with ! or #
+    
+Command file:
+    
+    Commands one per line.  Comments prefixed with ! or #.
+    Grid spacing is defined in east/north units.
+    required_point_proximity defines the minimum extent around 
+    points that the grid will extend in metres.
+    zero_outside_proximity will force the grid to fit a zero
+    deformation outside the proximity from data points, otherwise
+    it is unconstrained at the boundaries.
+    distortion_error and default_point_error define the errors
+    (weighting) applied to the control points and grid cell 
+    distortion.  
+    Point errors can also be defined on a per class basis, or
+    for individual points in the command file.  If specified
+    for specific points they over-ride errors specified in 
+    otherwise they do not.
+    Points and classes of points may also be rejected from the 
+    calculation.
+    
+    data_file  filename
+    coordinate_to_metres #.### [#.###]
+    grid_spacing #.### [#.###]
+    required_point_proximity #.####
+    zero_outside_proximity
+    
+    distortion_error #.###
+    default_point_error #.###
+    
+    point id [error #.###] [reject]
+    class cc [error #.###] [reject]
+    
+    
