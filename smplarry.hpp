@@ -28,7 +28,7 @@ class SimplePointerArray  : private VoidPointerArray {
     SimplePointerArray( int size = 16, char ownsdata = 0 ) :
         VoidPointerArray(size), ownsdata(ownsdata) {}
     ~SimplePointerArray();
-    VoidPointerArray::size;     // Want to be able to see this
+    using VoidPointerArray::size;     // Want to be able to see this
     int add( T *item ){ return VoidPointerArray::add( (void *) item ); }
     T * remove( T *item ){ return (T *) VoidPointerArray::remove( (void *) item);}
     T * remove( int i ){ return (T *) VoidPointerArray::remove( i );}

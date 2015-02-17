@@ -12,7 +12,7 @@ class ProgressMeter {
     int nesting;
     int showing;
     int checkAbort;
-    virtual void Show( char *status ) = 0;
+    virtual void Show( const char *status ) = 0;
     virtual void Redisplay() = 0;
     virtual void Hide() = 0;
     virtual int Abort(){ return 0;}
@@ -24,7 +24,7 @@ class ProgressMeter {
         showing(0),
         checkAbort(0) {}
     virtual ~ProgressMeter(){}
-    void Start(char *status, long range, long value = 0);
+    void Start(const char *status, long range, long value = 0);
     int Update(long value);
     void Finish();
     };
@@ -34,11 +34,11 @@ class AsciiBarMeter : public ProgressMeter {
     int curPos;
     char *prefix;
   protected:
-    virtual void Show( char *status );
+    virtual void Show( const char *status );
     virtual void Redisplay();
     virtual void Hide();
 public:
-    AsciiBarMeter( char *prefix = 0, int size = 50 );
+    AsciiBarMeter( const char *prefix = 0, int size = 50 );
     ~AsciiBarMeter();
     };
 

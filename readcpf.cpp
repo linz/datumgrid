@@ -2,7 +2,7 @@
 
 
 #include <fstream>
-#include <strstream>
+#include <sstream>
 #include <iostream>
 
 using namespace std;
@@ -33,7 +33,7 @@ int readControlPointFile( string filename, ControlPointList &list ){
        int nchar=ifs.gcount()-1;
        if( nchar <= 0 ) continue;
 
-       istrstream record( buf, nchar );
+       istringstream record( buf );
 
        record >> id;
 

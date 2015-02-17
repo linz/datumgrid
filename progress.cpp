@@ -18,7 +18,7 @@ using namespace std;
 
 
 
-void ProgressMeter::Start( char *status, long maxValue, long value ) {
+void ProgressMeter::Start( const char *status, long maxValue, long value ) {
    nesting++;
    if( nesting > 1 ) return;
    size = maxValue;
@@ -50,8 +50,9 @@ int ProgressMeter::CalcDisplayValue( long newValue ) {
    return 0;
    }
 
-AsciiBarMeter::AsciiBarMeter( char *Prefix, int size ){
-   if( ! Prefix ) Prefix = "";
+AsciiBarMeter::AsciiBarMeter( const char *Prefix, int size ){
+   const char *pfx="";
+   if( ! Prefix ) Prefix = pfx;
    prefix = new char[strlen(Prefix)+1];
    strcpy( prefix, Prefix );
    if( size > 0 ) resolution = size;
@@ -61,7 +62,7 @@ AsciiBarMeter::~AsciiBarMeter() {
    if( prefix ) delete [] prefix;
    }
 
-void AsciiBarMeter::Show( char *status ) {
+void AsciiBarMeter::Show( const char *status ) {
    if( status ) cout << prefix << status << "\n";
    cout << prefix;
    cout << HEADER_STRING;

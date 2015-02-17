@@ -11,7 +11,7 @@ using namespace std;
 #include "progress.hpp"
 #include "fixfmt.hpp"
 
-#define DEBUG_GRDOBSEQ 1
+//#define DEBUG_GRDOBSEQ 1
 
 // Grabbed from elsewhere - could be much more efficient!
 

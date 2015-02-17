@@ -1,6 +1,6 @@
 #include <iostream>
 #include <fstream>
-#include <strstream>
+#include <sstream>
 #include <cstring>
 #include <iomanip>
 
@@ -68,7 +68,7 @@ int readCommandFile( char *filename, GridParams &param, ControlPointList &pts ) 
        nrec++;
        int count=ifs.gcount();
        if( count < 2 ) continue;
-       istrstream record( buf, count-1 );
+       istringstream record( buf );
        // cout << "\"" << buf << "\" " << count << "\n";
        record >> command;
        if( record.fail() || command[0] == '!' ) continue;
@@ -311,8 +311,10 @@ int main( int argc, char *argv[] ) {
       writeGridDistortion( grid, deffile );
       }
 
+   /*
    // Write Surfer format grid files
    cout << "Writing surfer format grid files" << endl;
    grid.writeSurferFiles( rootfilename );
+   */
    return 0;
    }
