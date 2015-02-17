@@ -1,0 +1,42 @@
+#ifndef SYMMATRX_HPP
+#define SYMMATRX_HPP
+
+#include <assert.h>
+
+class SymMatrix {
+     double *scratch;
+     double *value;
+     int size;
+     int nelement;
+     int maxsize;
+     int badrow;
+     void SetSize( int size );
+     SymMatrix( const SymMatrix & );
+     void operator = ( SymMatrix & );
+  public:
+     SymMatrix( int size );
+     ~SymMatrix();
+     void Zero( int size = 0 );
+     int Invert();  // Zero = error;
+     int BadRow(){ return badrow; } // Row causing failure...
+     void ScaleBy( double value );
+     int Size(){ return size; }
+     double &operator()( int i, int j );
+     };
+
+inline
+double &SymMatrix::operator()( int i, int j ) {
+     assert( i > 0 && i <= size );
+     assert( j > 0 && j <= size );
+     int element;
+     if( i < j ) {
+        element = (j*(j-1))/2 + i - 1 ;
+        }
+     else {
+        element = (i*(i-1))/2 + j - 1;
+        }
+     return value[element];
+     }
+
+#endif
+
