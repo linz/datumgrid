@@ -9,6 +9,11 @@ using namespace std;
 
 static string missingValue("1.70141e+038");
 
+GridRow::~GridRow()
+{
+    if( data ) delete [] data;
+}
+
 void GridRow::expandRange( long nmin, long nmax ) {
     if( cmax < cmin ) {
        cmax = cmin = nmin;
@@ -21,7 +26,7 @@ void GridRow::expandRange( long nmin, long nmax ) {
 
 void GridRow::allocate() {
     if( cmax >= cmin ) {
-       data = new GridPoint[cmax-cmin+1];
+       data = new GridPoint[(cmax-cmin)+1];
        }
     }
 
@@ -33,10 +38,10 @@ void GridRow::crdRange( DoubleRange &range, int crd ) {
 
 long GridRow::setParamNo( long paramno, bool inRangeOnly )
 {
-    this->paramno = paramno;
+    this->paramno = paramno+1;
     if( data )
     {
-        for( int i=cmin; i <= cmax; i++ )
+        for( int i=0; i <= cmax-cmin; i++ )
         {
             if( inRangeOnly && ! data[i].inrange )
             {
@@ -44,7 +49,7 @@ long GridRow::setParamNo( long paramno, bool inRangeOnly )
             }
             else
             {
-                data[i].paramno=paramno;
+                data[i].paramno=paramno+1;
                 paramno += 2;
             }
         }
@@ -71,14 +76,10 @@ void GridRow::writeSurferRow( ostream &os, long nrow, int crd ) {
 Grid::Grid( GridParams &param, ControlPointList &pts ) {
     rows = 0;
 
-    spacing[0] = spacing[1] = param.spacing;
-
-    // Work out the number of grid cells required either side of each control
-    // point.
-
-    int ptInf = (param.pointInfluenceRange+1)/2;
-    double proximity = ptInf*param.spacing*1.1;
-    if( proximity <  param.maxPointProximity ) proximity = param.maxPointProximity;
+    spacing[0] = param.xSpacing;
+    spacing[1] = param.ySpacing;
+    scale[0]=param.xScale;
+    scale[1]=param.yScale;
 
     // Determine the extents covererd by the control points..
 
@@ -97,20 +98,33 @@ Grid::Grid( GridParams &param, ControlPointList &pts ) {
           }
        }
 
+    // Work out the number of grid cells required either side of each control
+    // point.
+
+    int ptInf = param.pointInfluenceRange+1;
+
     // Work out the grid location and extents...  Grid points are organised in
     // the same way as words on a page.
 
-    xmin -= proximity; xmax += proximity;
-    ymin -= proximity; ymax += proximity;
+    double borderx=param.maxPointProximity/(scale[0]*spacing[0]);
+    if( borderx < ptInf ) borderx=ptInf;
+    borderx *= spacing[0];
+
+    double bordery=param.maxPointProximity/(scale[1]*spacing[1]);
+    if( bordery < ptInf ) bordery=ptInf;
+    bordery *= spacing[1];
+
+    xmin -= borderx; xmax += borderx;
+    ymin -= bordery; ymax += bordery;
 
     double x0, y0;
     long ngx, ngy;
 
     x0 = spacing[0] * floor(xmin/spacing[0]);
-    y0 = spacing[1] * ceil(ymax/spacing[1]);
+    y0 = spacing[1] * floor(ymin/spacing[1]);
 
     ngx = (long) ceil( (xmax - x0)/spacing[0]) + 1;
-    ngy = (long) ceil( (y0 - ymin)/spacing[1]) + 1;
+    ngy = (long) ceil( (ymax - y0)/spacing[1]) + 1;
 
     // Allocate the grid rows..
 
@@ -121,46 +135,47 @@ Grid::Grid( GridParams &param, ControlPointList &pts ) {
     for( i = 0; i < pts.size(); i++ ) {
        const double *xy = pts[i]->coord();
        long rmin, rmax, cmin, cmax;
-       rmin = (long) floor( (y0 - xy[1] - proximity)/spacing[1] );
-       rmax = (long)  ceil( (y0 - xy[1] + proximity)/spacing[1] );
-       cmin = (long) floor( (xy[0] - x0 - proximity)/spacing[0] );
-       cmax = (long)  ceil( (xy[0] - x0 + proximity)/spacing[0] );
-
-       for( ; rmin <= rmax; rmin++ ) rows[rmin].expandRange( cmin, cmax );
+       rmin = (long) floor( (xy[1] - y0 - bordery)/spacing[1] );
+       rmax = (long)  ceil( (xy[1] - y0 + bordery)/spacing[1] );
+       cmin = (long) floor( (xy[0] - x0 - borderx)/spacing[0] );
+       cmax = (long)  ceil( (xy[0] - x0 + borderx)/spacing[0] );
+       if( rmin >= 0 && rmax < ngy )
+       {
+            for( ; rmin <= rmax; rmin++ ) rows[rmin].expandRange( cmin, cmax );
        }
-
-    // Now allocate space for the grid row and count the parameters in
-    // the adjustment.
-
-    paramcount = 0;
-    long r;
-    for( r = 0; r < ngy; r++ ) {
-       GridRow &row = rows[r];
-       row.allocate();
-       paramcount=row.setParamNo(paramcount,param.zeroOutsideProximity);
+       else
+       {
+           cout << "Error in grid rows!\n";
+       }
        }
 
     //  Set up the parameters of the grid..
 
-    spacing[1] = -spacing[1];
     xy0[0] = x0;
     xy0[1] = y0;
     ngrd[0] = ngx;
     ngrd[1] = ngy;
 
+    // Allocate space for the grid
+
+    for( long r = 0; r < ngy; r++ ) {
+       GridRow &row = rows[r];
+       row.allocate();
+       }
+
     // Define which points are within range of a control point
 
+    double p2=param.maxPointProximity*param.maxPointProximity;
     for( i = 0; i < pts.size(); i++ ) {
        if( pts[i]->isRejected() ) continue;
 
        const double *xy = pts[i]->coord();
        long rmin, rmax, cmin, cmax;
-       rmin = (long) floor( (y0 - xy[1] - proximity)/(-spacing[1]) );
-       rmax = (long)  ceil( (y0 - xy[1] + proximity)/(-spacing[1]) );
-       cmin = (long) floor( (xy[0] - x0 - proximity)/spacing[0] );
-       cmax = (long)  ceil( (xy[0] - x0 + proximity)/spacing[0] );
+       rmin = (long)  ceil( ((xy[1] - y0 - bordery)/spacing[1])-0.001 );
+       rmax = (long) floor( ((xy[1] - y0 + bordery)/spacing[1])+0.001 );
+       cmin = (long)  ceil( ((xy[0] - x0 - borderx)/spacing[0])-0.001 );
+       cmax = (long) floor( ((xy[0] - x0 + borderx)/spacing[0])+0.001 );
 
-       double p2=proximity*proximity;
        for( ; rmin <= rmax; rmin++ ) 
            for( long c=cmin; c <= cmax; c++ )
            {
@@ -168,13 +183,22 @@ Grid::Grid( GridParams &param, ControlPointList &pts ) {
                if( gp.inrange ) continue;
                double gxy[2];
                convert(c,rmin,gxy);
-               double distance=(gxy[0]-xy[0])*(gxy[0]-xy[0])+
-                   (gxy[1]-xy[1])*(gxy[1]-xy[1]);
+               double dx=(gxy[0]-xy[0])*scale[0];
+               double dy=(gxy[1]-xy[1])*scale[1];
+               double distance=dx*dx+dy*dy;
                if( distance < p2 )
                { 
                    gp.inrange=true;
                }
            }
+       }
+
+    // Now count the parameters in the adjustment.
+
+    paramcount = 0;
+    for( long r = 0; r < ngy; r++ ) {
+       GridRow &row = rows[r];
+       paramcount=row.setParamNo(paramcount,param.zeroOutsideProximity);
        }
     }
 
@@ -219,7 +243,8 @@ GridPoint & Grid::operator () ( long c, long r ) {
 
 long Grid::paramNo( long c, long r ) {
     if( isValidPoint(c,r) ) {
-       (*this)(c,r).paramno;
+       long paramno=(*this)(c,r).paramno;
+       return paramno;
        }
     else {
        return -1;

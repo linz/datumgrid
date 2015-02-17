@@ -32,7 +32,10 @@ inline void DoubleRange::expandToInclude( double v ) {
 
 class GridParams {
     public:
-       double spacing;
+       double xSpacing;
+       double ySpacing;
+       double xScale;
+       double yScale;
        double maxPointProximity;
        bool zeroOutsideProximity;
        double distortionError;
@@ -40,7 +43,10 @@ class GridParams {
        int ndpCoord;
        int ndpValue;
        GridParams() :
-          spacing(50000.0),
+          xSpacing(50000.0),
+          ySpacing(50000.0),
+          xScale(1.0),
+          yScale(1.0),
           maxPointProximity(100000.0),
           zeroOutsideProximity(false),
           distortionError(1.0),
@@ -69,6 +75,7 @@ class GridRow {
   public:
   private:
     GridRow() : cmin(-1), cmax(-2), paramno(-1), data(0) { ;}
+    ~GridRow();
     void expandRange( long nmin, long nmax );
     void crdRange( DoubleRange &range, int crd );
     long setParamNo( long paramno, bool inRangeOnly );
@@ -93,6 +100,7 @@ class Grid {
     void convert( long  cr[2], double xy[2] ){ convert( cr[0], cr[1], xy ); }
     void gridCoords( double xy[2], double gxy[2] );
     const double *getSpacing(){ return spacing; }
+    const double *getScale(){ return scale; }
     char isValidPoint( long c, long r );
     GridPoint & operator() (long c, long r );
     long paramNo( long c, long r );
@@ -101,7 +109,7 @@ class Grid {
     int writeSurferFiles( string &rootName );
   private:
     void writeSurferFile( ostream &os, int crd );
-    double xy0[2], spacing[2];
+    double xy0[2], spacing[2], scale[2];
     long ngrd[2];
     long paramcount;
     GridPoint dummy;

@@ -11,6 +11,8 @@ using namespace std;
 #include "progress.hpp"
 #include "fixfmt.hpp"
 
+#define DEBUG_GRDOBSEQ 1
+
 // Grabbed from elsewhere - could be much more efficient!
 
 static double vector_standardised_residual( int size, double *vec, double *cvr, int &rank ) {
@@ -76,7 +78,8 @@ void setupBandwidthDefinition( Grid &grd, BLT_Def &bltdef, int ptInfluenceRange 
           if( prm1 <= 0 ) continue;
           long prm2 = -1;
           for( long ic = i - pir; ic <= i && prm2 <= 0; ic++ ) {
-            for( long jr = j - pir; jr <= j; jr++ ) {
+            long jmax=ic == i ? j : j+pir;
+            for( long jr = j - pir; jr <= jmax; jr++ ) {
                prm2 = grd.paramNo( jr, ic );
                if( prm2 > 0 ) break;
                }
@@ -95,54 +98,55 @@ static double distortionParam[4][8];
 static double affineParam[2][8];
 
 void setupDistortionParam( Grid &grd, double dstError ) {
-   double dp[4][8] = {
-       { -1, -1, 1, -1, -1, 1, 1, 1 },  // gamma1
-       { 1, -1, 1, 1, -1, -1, -1, 1 },  // gamma2
-       { 0, -1, 0, 1, 0, 1, 0, -1 },    // d2vdxdy
-       { -1, 0, 1, 0, 1, 0, -1, 0 }     // d2udxdy
-       };
-   double ap[2][8] = {
-       { -1, 1, 1, 1, -1, -1, 1, -1 },  // scale
-       { -1, -1, -1, 1, 1, -1, 1, 1 }   // rotation
-       };
-
-   const double *grdspc = grd.getSpacing();
-   double mult = 1000000.0/(dstError*sqrt(0.5*fabs(grdspc[0]*grdspc[1])));
-
-   for( int i = 0; i < 4; i++ ) {
-      double mult1 = 0.0;
-      for( int j = 0; j < 8; j++ ) mult1 += dp[i][j]*dp[i][j];
-      mult1 = mult / sqrt(mult1);
-      for( int j = 0; j < 8; j++ ) distortionParam[i][j] = dp[i][j] * mult1;
-      }
-
-   mult = 250000.0/(sqrt(fabs(grdspc[0]*grdspc[1])));
-   for( int i = 0; i < 2; i++ ) {
-      for( int j = 0; j < 8; j++ ) affineParam[i][j] = ap[i][j] * mult;
-      }
+   // 1000000.0 converts to ppm
+   double ddx=1000000.0/(grd.getScale()[0]*grd.getSpacing()[0]);
+   double ddy=1000000.0/(grd.getScale()[1]*grd.getSpacing()[1]);
+   double ddxy=sqrt(ddx*ddx+ddy*ddy);
+   double dudx[8]={-1,0,-1,0,1,0,1,0};
+   double dudy[8]={-1,0,1,0,-1,0,1,0};
+   double dvdx[8]={0,-1,0,-1,0,1,0,1};
+   double dvdy[8]={0,-1,0,1,0,-1,0,1};
+   double d2udxdy[8]={-1,0,1,0,1,0,-1,0};
+   double d2vdxdy[8]={0,-1,0,1,0,1,0,-1};
+   for( int i=0; i<8; i++ )
+   {
+       dudx[i] *= 0.5*ddx;
+       dvdx[i] *= 0.5*ddx;
+       dudy[i] *= 0.5*ddy;
+       dvdy[i] *= 0.5*ddy;
+       distortionParam[0][i]=(dudx[i]-dvdy[i])/2.0; // Shear1
+       distortionParam[1][i]=(dudy[i]+dvdx[i])/2.0; // Shear2
+       distortionParam[2][i]=d2udxdy[i]*ddxy/4.0; // Non linear 1
+       distortionParam[3][i]=d2vdxdy[i]*ddxy/4.0; // Non linear 1
+       affineParam[0][i]=(dudx[i]+dvdy[i])/2.0; // Linear scale
+       affineParam[1][i]=(dudy[i]-dvdx[i])/2.0; // Rotation
+   }
    }
 
 
 int DistortionObseqn( Grid &grd, long c, long r, Obseqn &oe ) {
    long prmNo[4];
-   prmNo[0] = grd.paramNo( c, r ); if( prmNo[0] <= 0 ) return 0;
-   prmNo[1] = grd.paramNo( c+1, r ); if( prmNo[1] <= 0 ) return 0;
-   prmNo[2] = grd.paramNo( c, r+1 ); if( prmNo[2] <= 0 ) return 0;
-   prmNo[3] = grd.paramNo( c+1, r+1 ); if( prmNo[3] <= 0 ) return 0;
+   prmNo[0] = grd.paramNo( c, r ); if( prmNo[0] < 0 ) return 0;
+   prmNo[1] = grd.paramNo( c+1, r ); if( prmNo[1] < 0 ) return 0;
+   prmNo[2] = grd.paramNo( c, r+1 ); if( prmNo[2] < 0 ) return 0;
+   prmNo[3] = grd.paramNo( c+1, r+1 ); if( prmNo[3] < 0 ) return 0;
    double xy0[2];
    double xy1[2];
    grd.convert(c,r,xy0);
    grd.convert(c+1,r+1,xy1);
-   // cout << "distortion " << (xy0[0]+xy1[0])/2.0 << " " << (xy0[1]+xy1[1])/2.0 
-   //    << " " << prmNo[0]
-   //    << " " << prmNo[1]
-   //    << " " << prmNo[2]
-   //    << " " << prmNo[3]
-   //    << "\n";
+#ifdef DEBUG_GRDOBSEQ
+   cout << "distortion " << (xy0[0]+xy1[0])/2.0 << " " << (xy0[1]+xy1[1])/2.0 
+       << " " << prmNo[0]
+       << " " << prmNo[1]
+       << " " << prmNo[2]
+       << " " << prmNo[3]
+       << "\n";
+#endif
    oe.Zero( 4, 0, 0 );
    for( int d = 0; d < 4; d++ ) {
       double *dp = & distortionParam[d][0];
       for( int nod = 0; nod < 4; nod++ ) {
+         if( prmNo[nod] == 0 ) continue;
          oe.A(d+1,prmNo[nod]) = *dp++;
          oe.A(d+1,prmNo[nod]+1) = *dp++;
          }
@@ -158,7 +162,9 @@ long sumDistortionConstraints( Grid &grd, LinearEquations &le, ProgressMeter &pm
    Obseqn oe(4);
    long nsum=0;
    for( long r = 0; r < nr; r++ ) {
+#ifndef DEBUG_GRDOBSEQ
       pm.Update(r);
+#endif
       for( long c = 0; c < nc; c++ ) {
          if( DistortionObseqn( grd, c, r, oe )) 
          {
@@ -262,12 +268,20 @@ void ControlPointObseqn( Grid &grd, ControlPoint &cp, GridInterpolator &gi,
     Obseqn &oe ) {
     oe.Zero( 2, 0, 0 );
     gi.setupInterpolationPoint( cp.coord(), grd );
-    cout << "Control point:";
+#ifdef DEBUG_GRDOBSEQ
+    cout << "cpt " << cp.getId() << ":";
+#endif
     for( int ip = 0; ip < gi.nInterpolationPoints(); ip++ ) {
        GridInterpolationPoint &gip = *gi[ip];
        long prmNo = grd.paramNo( gip.col, gip.row );
        if( prmNo <= 0 ) continue;
-       cout << " " << prmNo;
+#ifdef DEBUG_GRDOBSEQ
+       cout << " " << prmNo 
+           << " " << gip.dx[0] 
+           << " " << gip.dy[0] 
+           << " " << gip.dx[1] 
+           << " " << gip.dy[1];
+#endif
        oe.A(1, prmNo ) = gip.dx[0];
        oe.A(2, prmNo ) = gip.dy[0];
        prmNo++;
@@ -280,7 +294,9 @@ void ControlPointObseqn( Grid &grd, ControlPoint &cp, GridInterpolator &gi,
     wgt *= wgt;
     oe.w(1) = wgt;
     oe.w(2) = wgt;
-    cout <<  " weight " << wgt << "\n";
+#ifdef DEBUG_GRDOBSEQ
+     cout <<  " weight " << wgt << "\n";
+#endif
     }
 
 
@@ -290,7 +306,9 @@ long sumControlPoints( Grid &grd, ControlPointList &pts, GridInterpolator &gi,
     Obseqn oe(2);
     int nsum=0;
     for( int i = 0; i < pts.size(); i++ ) {
+#ifndef DEBUG_GRDOBSEQ
        pm.Update(i);
+#endif
        ControlPoint &cp = *pts[i];
        if( cp.isRejected() ) continue;
        ControlPointObseqn( grd, cp, gi, oe );

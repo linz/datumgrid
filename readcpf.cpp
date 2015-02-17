@@ -22,6 +22,7 @@ int readControlPointFile( string filename, ControlPointList &list ){
     char buf[MAXREC];
     string id;
     double x, y, dx, dy;
+    double error;
     string ptclass;
     int nrec = 0;
 
@@ -29,17 +30,22 @@ int readControlPointFile( string filename, ControlPointList &list ){
        // Get a record into an input string stream...
        ifs.getline( buf, MAXREC );
        nrec++;
+       int nchar=ifs.gcount()-1;
+       if( nchar <= 0 ) continue;
 
-       istrstream record( buf, ifs.gcount() );
+       istrstream record( buf, nchar );
 
        record >> id;
 
        // Skip blank strings and comments
-       if( ! record.good() || id[0] == '!' ) continue;
+       if( ! record.good() || id[0] == '!' || id[0] == '#' ) continue;
 
        record >> x >> y >> dx >> dy >> ptclass;
        if( ! record.fail() ) {
-          list.add( new ControlPoint( id, x, y, dx, dy, ptclass ));
+          ControlPoint *cpt=new ControlPoint( id, x, y, dx, dy, ptclass );
+          record >> error;
+          if( ! record.fail() ) cpt->setError( error );
+          list.add( cpt );
           }
        else {
           cerr << "Invalid data in control point file " << filename

@@ -15,10 +15,10 @@ using namespace std;
 
 const int MAXREC = 256;
 
-int readPositiveNumber( istream &is, double &val, string &errmess ) {
+int readPositiveNumber( istream &is, double &val, string &errmess, bool optional=false ) {
    is >> val;
    if( is.fail() ) {
-      errmess = "Missing value";
+      if( ! optional ) errmess = "Missing value";
       return 0;
       }
    else if ( val <= 0.0 ) {
@@ -71,7 +71,8 @@ int readCommandFile( char *filename, GridParams &param, ControlPointList &pts ) 
        istrstream record( buf, count-1 );
        // cout << "\"" << buf << "\" " << count << "\n";
        record >> command;
-       if( !record.good() || command[0] == '!' ) continue;
+       if( record.fail() || command[0] == '!' ) continue;
+       if( command[0] == '#' ) continue;
 
        error = "";
        if( command == "data_file" ) {
@@ -89,7 +90,19 @@ int readCommandFile( char *filename, GridParams &param, ControlPointList &pts ) 
            }
 
        else if ( command == "grid_spacing" ) {
-           readPositiveNumber( record, param.spacing, error );
+           readPositiveNumber( record, param.xSpacing, error );
+           if( ! readPositiveNumber( record, param.ySpacing, error, true ))
+           {
+               param.ySpacing=param.xSpacing;
+           }
+           }
+
+       else if ( command == "coordinate_to_metres" ) {
+           readPositiveNumber( record, param.xScale, error );
+           if( ! readPositiveNumber( record, param.yScale, error, true ))
+           {
+               param.yScale=param.xScale;
+           }
            }
 
        else if ( command ==  "required_point_proximity" ) {
@@ -229,7 +242,7 @@ int main( int argc, char *argv[] ) {
       outputfile = rootfilename + "_grd.csv";
       ofstream grdfile( outputfile.c_str() );
       cout << "Writing grid to " << outputfile << endl;
-      grdfile << "x,y,dx,dy,calc\n";
+      grdfile << "x,y,dx,dy,calc,paramno\n";
       for( long r = 0; r < grid.nrows(); r++ ) for (long c = 0; c < grid.ncols(); c++ ) {
          if( grid.isValidPoint(c,r) ) {
             long cr[2] = {c,r};
@@ -237,9 +250,10 @@ int main( int argc, char *argv[] ) {
             grid.convert( cr, xy );
             double *offset = grid(c,r).dxy;
             int calc = grid(c,r).inrange ? 1 : 0;
+            int paramno=grid(c,r).paramno;
             grdfile << FixedFormat(param.ndpCoord) << xy[0] << "," << xy[1] << ","
                     << FixedFormat(param.ndpValue) << offset[0] << "," << offset[1]
-                    << "," << calc
+                    << "," << calc << "," << paramno
                     << endl;
             }
          }
