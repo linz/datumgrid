@@ -47,6 +47,9 @@ Command file:
     
     distortion_error #.###
     default_point_error #.###
+
+    coordinate_precision #
+    value_precision #
     
     point id [error #.###] [reject]
     class cc [error #.###] [reject]

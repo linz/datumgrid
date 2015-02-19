@@ -48,7 +48,9 @@ class BLT_Matrix {
        int Invert();
        // Note: Solve can only be called when the Choleski decomposition
        // has been formed.
-       int Solve( double *b, double *r );
+       int Solve( double *b, double *s );
+       // Multiplies a vector b by the inverse choleski matrix...
+       int CholInvMult( double *b, double *s );
        int BadRow(){ return badrow; }
        long NonZeroCount();  // Total number of potentially n.z. elements in matrix
        static void SetProgressMeter( ProgressMeter *newMeter ){ meter = newMeter; }

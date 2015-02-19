@@ -267,18 +267,30 @@ int Obseqn::CalcValue( LinearEquations &le, leVector *prm, SymMatrix *sym ) {
     //
     if( !sym ) return 1;
     if( nimplicit ) return 0; // In case assertion is not being tested.
-    if( !le.Invert() ) return 0;
 
+    int nparam=le.NParam();
+    scratch.Zero(nparam*nrows);
+    double *svec0=scratch.Vector();
+
+    for( int i=1; i <= nrows; i++, svec0 += nparam )
+    {
+        ObsRow &oi=Row(i);
+        for( int ic=0;  ic<oi.nextcol; ic++ )
+        {
+            svec0[oi.cols[ic]-1]=oi.param[ic];
+        }
+        if( ! le.N.CholInvMult(svec0,svec0) ) return 0;
+    }
+
+    svec0=scratch.Vector();
     sym->Zero(nrows);
-    for( int i = 1; i <= nrows; i++ ) {
-       ObsRow &oi = Row(i);
-       for( int j = 1; j <= i; j++ ) {
-          ObsRow &oj = Row(j);
+
+    for( int i = 1; i <= nrows; i++, svec0 += nparam ) {
+       double *svec1=scratch.Vector();
+       for( int j = 1; j <= i; j++, svec1 += nparam ) {
           double cvr = 0;
-          for( int ic = 0; ic < oi.nextcol; ic++ ) {
-              for( int jc = 0; jc < oj.nextcol; jc++ ) {
-                 cvr += oi.param[ic]*oj.param[jc]*le.N(oi.cols[ic],oi.cols[jc]);
-                 }
+          for( int ic = 0; ic < nparam; ic++ ) {
+              cvr += svec0[ic]*svec1[ic];
               }
           (*sym)(i,j) = cvr;
           }

@@ -18,6 +18,7 @@ class leVector {
      leVector( int size );
      ~leVector();
      double &operator ()( int i );
+     double *Vector(){ return vec; }
      void Zero( int size = 0 );
      };
 
@@ -30,6 +31,7 @@ class LinearEquations {
     int Solve();
     int Invert();
     int BadRow(){ return badrow; }
+    int NParam(){ return N.Size(); }
     double Param( int i ){ return param(i); }
     int Summing(){ return status == leSumming ? 1 : 0; }
     int Solved(){ return status == leSolved || status == leInverted ? 1 : 0; }

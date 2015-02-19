@@ -237,7 +237,8 @@ int BLT_Matrix::FormCholeskiDecomposition(){
 // The usual stuff, coded with lots of pointer increment, decrement, avoiding
 // array indices at the expense of clarity.
 
-int BLT_Matrix::Solve( double *b, double *s ) {
+int BLT_Matrix::CholInvMult( double *b, double *s )
+{
    if( status == Entering ) FormCholeskiDecomposition();
    if( status != Choleski ) return 0;
    double *bk = b;
@@ -250,7 +251,11 @@ int BLT_Matrix::Solve( double *b, double *s ) {
        for( ; kmin < i; kmin++, rk++, sk++ ) sum -= *rk * *sk;
        *sk = (*bk + sum) / *rk;
        }
+   return 1;
+}
 
+int BLT_Matrix::Solve( double *b, double *s ) {
+   if( ! CholInvMult(b,s)) return 0;
    double *si = s + nRows - 1;
    for (  int i = nRows; i; i--, si--) {
        double sum = 0.0;

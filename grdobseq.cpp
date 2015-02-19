@@ -114,10 +114,10 @@ void setupDistortionParam( Grid &grd, double dstError ) {
        dvdx[i] *= 0.5*ddx;
        dudy[i] *= 0.5*ddy;
        dvdy[i] *= 0.5*ddy;
-       distortionParam[0][i]=(dudx[i]-dvdy[i])/2.0; // Shear1
-       distortionParam[1][i]=(dudy[i]+dvdx[i])/2.0; // Shear2
-       distortionParam[2][i]=d2udxdy[i]*ddxy/4.0; // Non linear 1
-       distortionParam[3][i]=d2vdxdy[i]*ddxy/4.0; // Non linear 1
+       distortionParam[0][i]=(dudx[i]-dvdy[i])/(dstError*2.0); // Shear1
+       distortionParam[1][i]=(dudy[i]+dvdx[i])/(dstError*2.0); // Shear2
+       distortionParam[2][i]=d2udxdy[i]*ddxy/(dstError*4.0); // Non linear 1
+       distortionParam[3][i]=d2vdxdy[i]*ddxy/(dstError*4.0); // Non linear 1
        affineParam[0][i]=(dudx[i]+dvdy[i])/2.0; // Linear scale
        affineParam[1][i]=(dudy[i]-dvdx[i])/2.0; // Rotation
    }
@@ -214,7 +214,7 @@ void calcGridStandardisedResiduals( Grid &grd, LinearEquations &le, ProgressMete
    }
 
 
-void writeGridDistortion( Grid &grd, ostream &os ) {
+void writeGridDistortion( Grid &grd, int coord_precision, ostream &os ) {
    long nr = grd.nrows() - 1;
    long nc = grd.ncols() - 1;
    double xc = grd.getSpacing()[0]/2.0;
@@ -251,10 +251,9 @@ void writeGridDistortion( Grid &grd, ostream &os ) {
          cumdist = sqrt(cumdist);
          double shear = hypot(distortion[0],distortion[1]);
          double rlaxis = atan2(distortion[1],distortion[0])*(90/M_PI) - 45;
-         long cr[2] = {c,r};
          double xy[2];
-         grd.convert( cr, xy );
-         os << FixedFormat(0) << (xy[0]+xc) << "," << (xy[1]+yc) << ","
+         grd.convert( c, r, xy );
+         os << FixedFormat(coord_precision) << (xy[0]+xc) << "," << (xy[1]+yc) << ","
             << FixedFormat(2) << dilatation << "," << rotation << ","
             << cumdist << "," << shear << "," << rlaxis << ","
             << grd(c,r).sr << "\n";
@@ -417,15 +416,15 @@ int CalculateGridModel( Grid &grd, ControlPointList &pts,
 
     // Invert the covariance matrix
 
-    BLT_Matrix::SetProgressMeter( &pm );
-    le.Invert();
-    BLT_Matrix::SetProgressMeter( 0 );
+    // BLT_Matrix::SetProgressMeter( &pm );
+    // le.Invert();
+    // BLT_Matrix::SetProgressMeter( 0 );
 
 
     // Update the control points with calculated values and residuals
 
     calcControlPointListResiduals( grd, pts, gi, le, pm );
-    calcGridStandardisedResiduals( grd, le, pm );
+    // calcGridStandardisedResiduals( grd, le, pm );
 
     return 1;
     }

@@ -242,21 +242,26 @@ int main( int argc, char *argv[] ) {
       outputfile = rootfilename + "_grd.csv";
       ofstream grdfile( outputfile.c_str() );
       cout << "Writing grid to " << outputfile << endl;
-      grdfile << "x,y,dx,dy,calc,paramno\n";
+      // grdfile << "x,y,dx,dy,calc,paramno\n";
+      grdfile << "x,y,dx,dy,mode,paramno\n";
+      double zeroOffset[2]={0,0};
       for( long r = 0; r < grid.nrows(); r++ ) for (long c = 0; c < grid.ncols(); c++ ) {
+         double xy[2];
+         grid.convert( c,r, xy );
+         double *offset=zeroOffset;
+         int paramno=0;
+         string mode="fill";
          if( grid.isValidPoint(c,r) ) {
-            long cr[2] = {c,r};
-            double xy[2];
-            grid.convert( cr, xy );
-            double *offset = grid(c,r).dxy;
-            int calc = grid(c,r).inrange ? 1 : 0;
-            int paramno=grid(c,r).paramno;
-            grdfile << FixedFormat(param.ndpCoord) << xy[0] << "," << xy[1] << ","
-                    << FixedFormat(param.ndpValue) << offset[0] << "," << offset[1]
-                    << "," << calc << "," << paramno
-                    << endl;
+            offset = grid(c,r).dxy;
+            paramno=grid(c,r).paramno;
+            if(paramno <= 0 ) mode="zero"; else mode="calc";
             }
+         grdfile << FixedFormat(param.ndpCoord) << xy[0] << "," << xy[1] << ","
+                    << FixedFormat(param.ndpValue) << offset[0] << "," << offset[1]
+                    << "," << mode << "," << paramno
+                    << endl;
          }
+
       }
 
    if( ! success ) return 0;
@@ -272,13 +277,14 @@ int main( int argc, char *argv[] ) {
       outputfile = rootfilename + "_cpt.csv";
       cout << "Writing control points to " << outputfile << endl;
       ofstream cptfile( outputfile.c_str() );
-      cptfile << "id,x,y,dx,dy,calcdx,calcdy,residual,stdres,class,error,used\n";
+      cptfile << "id,x,y,dx,dy,calcdx,calcdy,resdx,resdy,residual,stdres,class,error,used\n";
       for( long i = 0; i < points.size(); i++ ) {
          ControlPoint &cpt = * points[i];
          cptfile << "\"" << cpt.getId() << "\","
                  << FixedFormat(param.ndpCoord) << cpt.coord()[0] << "," << cpt.coord()[1] << ","
                  << FixedFormat(param.ndpValue) << cpt.offset()[0] << "," << cpt.offset()[1] << ","
                  << cpt.calcOffset()[0] << "," << cpt.calcOffset()[1] << ","
+                 << cpt.offset()[0]-cpt.calcOffset()[0] << "," << cpt.offset()[1]-cpt.calcOffset()[1] << ","
                  << cpt.distanceResidual() << "," << cpt.stdResidual() << ",\""
                  << cpt.getClass().getName() << "\","
                  << cpt.getError() << "," 
@@ -287,7 +293,7 @@ int main( int argc, char *argv[] ) {
          }
       }
 
-   {
+   if( 0 ){
       logfile << "Summary of residuals by class\n";
       for( int i = 0; i < ControlPointClass::count(); i++ ) {
          ControlPointClass &cpc = *ControlPointClass::classNumber(i);
@@ -308,7 +314,7 @@ int main( int argc, char *argv[] ) {
       outputfile = rootfilename + "_def.csv";
       ofstream deffile( outputfile.c_str() );
       cout << "Writing deformation to " << outputfile << endl;
-      writeGridDistortion( grid, deffile );
+      writeGridDistortion( grid, param.ndpCoord, deffile );
       }
 
    /*

@@ -30,6 +30,6 @@ long sumControlPoints( Grid &grd, ControlPointList &pts, GridInterpolator &gi,
     LinearEquations &le, ProgressMeter &pm );
 int CalculateGridModel( Grid &grd, ControlPointList &pts,
                         GridInterpolator &gi, double dstError );
-void writeGridDistortion( Grid &grd, ostream &os );
+void writeGridDistortion( Grid &grd, int coord_precision, ostream &os );
 
 #endif
