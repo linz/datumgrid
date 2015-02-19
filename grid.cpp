@@ -257,9 +257,9 @@ ostream & Grid::dumpSpecTo( ostream &os, bool full ) {
     os << "Top left point " << xy0[0] << ", " << xy0[1] << "\n";
     os << "Spacing " << spacing[0] << ", " << spacing[1] << "\n";
     os << "Parameters " << paramcount << "\n";
-    os << "Row definitions: \n";
     if( full )
     {
+        os << "Row definitions: \n";
         for( long i = 0; i < nrows(); i++ ) {
             os << " row " << i << ": " << rows[i].cmin << " " << rows[i].cmax
                  << " " << rows[i].paramno << "\n";

@@ -48,10 +48,17 @@ Command file:
     distortion_error #.###
     default_point_error #.###
 
-    coordinate_precision #
-    value_precision #
     
     point id [error #.###] [reject]
     class cc [error #.###] [reject]
+
+    # Output options
+    columns xcol ycol dxcol dycol
+    coordinate_precision #
+    value_precision #
+    print_grid_params [true|false] (parameter numbers)
+    fill_grd [true|false] (to rectangle)
+    calc_standardised_residuals [true|false] (of control points)
+    
     
     

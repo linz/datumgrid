@@ -214,13 +214,14 @@ void calcGridStandardisedResiduals( Grid &grd, LinearEquations &le, ProgressMete
    }
 
 
-void writeGridDistortion( Grid &grd, int coord_precision, ostream &os ) {
+void writeGridDistortion( Grid &grd, GridParams &param , ostream &os ) {
    long nr = grd.nrows() - 1;
    long nc = grd.ncols() - 1;
    double xc = grd.getSpacing()[0]/2.0;
    double yc = grd.getSpacing()[1]/2.0;
    setupDistortionParam( grd, 1.0 );
-   os << "x,y,scale,rotation,distortion,shear,rlaxis,stdres\n";
+   os << param.xcolname << "," << param.ycolname 
+       << ",scale,rotation,distortion,shear,rlaxis,stdres\n";
    for( long r = 0; r < nr; r++ ) {
       for( long c = 0; c < nc; c++ ) {
          if( grd.paramNo( c, r ) <= 0 ||
@@ -253,7 +254,7 @@ void writeGridDistortion( Grid &grd, int coord_precision, ostream &os ) {
          double rlaxis = atan2(distortion[1],distortion[0])*(90/M_PI) - 45;
          double xy[2];
          grd.convert( c, r, xy );
-         os << FixedFormat(coord_precision) << (xy[0]+xc) << "," << (xy[1]+yc) << ","
+         os << FixedFormat(param.ndpCoord) << (xy[0]+xc) << "," << (xy[1]+yc) << ","
             << FixedFormat(2) << dilatation << "," << rotation << ","
             << cumdist << "," << shear << "," << rlaxis << ","
             << grd(c,r).sr << "\n";
@@ -321,45 +322,53 @@ long sumControlPoints( Grid &grd, ControlPointList &pts, GridInterpolator &gi,
 
 
 void calcControlPointResidual( Grid &grd, ControlPoint &cp, GridInterpolator &gi,
-    LinearEquations &le ) {
+    LinearEquations &le, bool calcStdRes ) {
     Obseqn oe(2,0,0);
     ControlPointObseqn( grd, cp, gi, oe );
     leVector calc(2);
     SymMatrix cvr(2);
-    if( ! oe.CalcValue( le, &calc, &cvr )) { return; }
+    SymMatrix *ptrCvr = calcStdRes ? &cvr : 0;
+    if( ! oe.CalcValue( le, &calc, ptrCvr )) { return; }
     cp.calcOffset()[0] = calc(1);
     cp.calcOffset()[1] = calc(2);
     double tmpvec[2], tmpcvr[3];
     tmpvec[0] = cp.calcOffset()[0] - cp.offset()[0];
     tmpvec[1] = cp.calcOffset()[1] - cp.offset()[1];
     cp.distanceResidual() = hypot( tmpvec[0], tmpvec[1] );
-    double sign =  cp.isRejected() ? 1 : -1;
-    double wgt = cp.getError();
-    wgt *= wgt;
-    tmpcvr[0] = wgt + sign * cvr(1,1);
-    tmpcvr[1] = sign * cvr(1,2);
-    tmpcvr[2] = wgt + sign * cvr(2,2);
-    int rank;
-
-    cp.stdResidual() = vector_standardised_residual( 2, tmpvec, tmpcvr, rank );
+    if( calcStdRes )
+    {
+        double sign =  cp.isRejected() ? 1 : -1;
+        double wgt = cp.getError();
+        wgt *= wgt;
+        tmpcvr[0] = wgt + sign * cvr(1,1);
+        tmpcvr[1] = sign * cvr(1,2);
+        tmpcvr[2] = wgt + sign * cvr(2,2);
+        int rank;
+        cp.stdResidual() = vector_standardised_residual( 2, tmpvec, tmpcvr, rank );
+    }
+    else
+    {
+        cp.stdResidual()=0.0;
+    }
     }
 
 
 
 void calcControlPointListResiduals( Grid &grd, ControlPointList &pts, GridInterpolator &gi,
-    LinearEquations &le, ProgressMeter &pm ) {
+    LinearEquations &le, bool calcStdRes, ProgressMeter &pm ) {
     pm.Start("Calculating control point residuals",pts.size() );
     for( int i = 0; i < pts.size(); i++ ) {
        pm.Update(i);
        ControlPoint &cp = *pts[i];
-       calcControlPointResidual( grd, cp, gi, le );
+       calcControlPointResidual( grd, cp, gi, le, calcStdRes );
        }
     pm.Finish();
     }
 
 
 int CalculateGridModel( Grid &grd, ControlPointList &pts,
-                        GridInterpolator &gi, double dstError ) {
+                        GridInterpolator &gi, double dstError,
+                        bool calcStdRes ) {
     AsciiBarMeter pm;
 
     // Set up the linear equations
@@ -423,7 +432,7 @@ int CalculateGridModel( Grid &grd, ControlPointList &pts,
 
     // Update the control points with calculated values and residuals
 
-    calcControlPointListResiduals( grd, pts, gi, le, pm );
+    calcControlPointListResiduals( grd, pts, gi, le, calcStdRes, pm );
     // calcGridStandardisedResiduals( grd, le, pm );
 
     return 1;

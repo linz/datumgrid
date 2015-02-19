@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <cstring>
+#include <string>
 #include "contrlpt.hpp"
 
 using namespace std;
@@ -42,6 +43,13 @@ class GridParams {
        int  pointInfluenceRange;
        int ndpCoord;
        int ndpValue;
+       string xcolname;
+       string ycolname;
+       string dxcolname;
+       string dycolname;
+       bool printGridParams;
+       bool fillGrid;
+       bool calcStdRes;
        GridParams() :
           xSpacing(50000.0),
           ySpacing(50000.0),
@@ -52,7 +60,14 @@ class GridParams {
           distortionError(1.0),
           pointInfluenceRange(1),
           ndpCoord(0),
-          ndpValue(4)
+          ndpValue(4),
+          xcolname("x"),
+          ycolname("y"),
+          dxcolname("dx"),
+          dycolname("dy"),
+          printGridParams(false),
+          fillGrid(false),
+          calcStdRes(true)
           {}
     };
 

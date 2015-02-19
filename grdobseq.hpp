@@ -29,7 +29,8 @@ long sumDistortionConstraints( Grid &grd, LinearEquations &le, ProgressMeter &pm
 long sumControlPoints( Grid &grd, ControlPointList &pts, GridInterpolator &gi,
     LinearEquations &le, ProgressMeter &pm );
 int CalculateGridModel( Grid &grd, ControlPointList &pts,
-                        GridInterpolator &gi, double dstError );
-void writeGridDistortion( Grid &grd, int coord_precision, ostream &os );
+                        GridInterpolator &gi, double dstError,
+                        bool calcStdRes=true );
+void writeGridDistortion( Grid &grd, GridParams &param, ostream &os );
 
 #endif

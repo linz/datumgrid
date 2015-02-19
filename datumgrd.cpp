@@ -49,6 +49,16 @@ int readErrorOrReject( istream &is, double &val, char &reject, string &errmess )
       }
    }
 
+int readBool( istream &is, bool &val, string &errmess ) {
+   string option;
+   is >> option;
+   // string::set_case_sensitive( 0 );
+   bool result=true;
+   if( option == "false" || option == "no" ) result=false;
+   val=result;
+}
+
+
 int readCommandFile( char *filename, GridParams &param, ControlPointList &pts ) {
    ifstream ifs(filename);
    if( ! ifs.good() ) {
@@ -184,6 +194,26 @@ int readCommandFile( char *filename, GridParams &param, ControlPointList &pts ) 
 
            }
 
+       else if ( command == "columns" ) {
+           record >> param.xcolname >> param.ycolname >> param.dxcolname >> param.dycolname;
+           if( record.fail() )
+           {
+               error="Missing column names";
+           }
+           }
+
+       else if( command == "print_grid_params" )
+       {
+           readBool(record,param.printGridParams,error);
+       }
+       else if( command == "fill_grid" )
+       {
+           readBool(record,param.fillGrid,error);
+       }
+       else if( command == "calculate_control_point_stdres" )
+       {
+           readBool(record,param.calcStdRes,error);
+       }
        else {
            error = "Invalid command";
            }
@@ -243,7 +273,13 @@ int main( int argc, char *argv[] ) {
       ofstream grdfile( outputfile.c_str() );
       cout << "Writing grid to " << outputfile << endl;
       // grdfile << "x,y,dx,dy,calc,paramno\n";
-      grdfile << "x,y,dx,dy,mode,paramno\n";
+      grdfile 
+              << param.xcolname << ","
+              << param.ycolname << ","
+              << param.dxcolname << ","
+              << param.dycolname;
+      if( param.printGridParams ) grdfile << ",mode,paramno";
+      grdfile << "\n";
       double zeroOffset[2]={0,0};
       for( long r = 0; r < grid.nrows(); r++ ) for (long c = 0; c < grid.ncols(); c++ ) {
          double xy[2];
@@ -256,10 +292,11 @@ int main( int argc, char *argv[] ) {
             paramno=grid(c,r).paramno;
             if(paramno <= 0 ) mode="zero"; else mode="calc";
             }
+         else if( ! param.fillGrid ) continue;
          grdfile << FixedFormat(param.ndpCoord) << xy[0] << "," << xy[1] << ","
-                    << FixedFormat(param.ndpValue) << offset[0] << "," << offset[1]
-                    << "," << mode << "," << paramno
-                    << endl;
+                    << FixedFormat(param.ndpValue) << offset[0] << "," << offset[1];
+         if( param.printGridParams ) grdfile << "," << mode << "," << paramno;
+         grdfile << endl;
          }
 
       }
@@ -277,7 +314,16 @@ int main( int argc, char *argv[] ) {
       outputfile = rootfilename + "_cpt.csv";
       cout << "Writing control points to " << outputfile << endl;
       ofstream cptfile( outputfile.c_str() );
-      cptfile << "id,x,y,dx,dy,calcdx,calcdy,resdx,resdy,residual,stdres,class,error,used\n";
+      cptfile << "id,"
+              << param.xcolname << ","
+              << param.ycolname << ","
+              << param.dxcolname << ","
+              << param.dycolname << ","
+              << "calc" << param.dxcolname << ","
+              << "calc" << param.dycolname << ","
+              << "res" << param.dxcolname << ","
+              << "res" << param.dycolname << ","
+              << ",residual,stdres,class,error,used\n";
       for( long i = 0; i < points.size(); i++ ) {
          ControlPoint &cpt = * points[i];
          cptfile << "\"" << cpt.getId() << "\","
@@ -314,7 +360,7 @@ int main( int argc, char *argv[] ) {
       outputfile = rootfilename + "_def.csv";
       ofstream deffile( outputfile.c_str() );
       cout << "Writing deformation to " << outputfile << endl;
-      writeGridDistortion( grid, param.ndpCoord, deffile );
+      writeGridDistortion( grid, param, deffile );
       }
 
    /*

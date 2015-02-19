@@ -4,6 +4,7 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <algorithm>
 
 using namespace std;
 
@@ -18,23 +19,18 @@ int readControlPointFile( string filename, ControlPointList &list ){
        return 0;
        }
 
-
-    char buf[MAXREC];
     string id;
+    string buffer;
     double x, y, dx, dy;
     double error;
     string ptclass;
     int nrec = 0;
 
-    while( ifs.good() ){
-       // Get a record into an input string stream...
-       ifs.getline( buf, MAXREC );
+    // Get a record into an input string stream...
+    while( getline(ifs,buffer) ){
        nrec++;
-       int nchar=ifs.gcount()-1;
-       if( nchar <= 0 ) continue;
-
-       istringstream record( buf );
-
+       replace(buffer.begin(),buffer.end(),',',' ');
+       istringstream record( buffer );
        record >> id;
 
        // Skip blank strings and comments
@@ -47,7 +43,7 @@ int readControlPointFile( string filename, ControlPointList &list ){
           if( ! record.fail() ) cpt->setError( error );
           list.add( cpt );
           }
-       else {
+       else if( nrec > 1 ) {
           cerr << "Invalid data in control point file " << filename
                << " at record " << nrec << "\n";
           }
