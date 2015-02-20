@@ -258,7 +258,7 @@ int main( int argc, char *argv[] ) {
 
    // grid.dumpSpecTo( cout );
 
-   int success=CalculateGridModel( grid, points, gi, param.distortionError  );
+   int success=CalculateGridModel( grid, points, gi, param.distortionError, param.calcStdRes );
    if( ! success ) {
       cout << "Failed to calculate grid model" << endl;
       }
@@ -323,14 +323,14 @@ int main( int argc, char *argv[] ) {
               << "calc" << param.dycolname << ","
               << "res" << param.dxcolname << ","
               << "res" << param.dycolname << ","
-              << ",residual,stdres,class,error,used\n";
+              << "residual,stdres,class,error,used\n";
       for( long i = 0; i < points.size(); i++ ) {
          ControlPoint &cpt = * points[i];
          cptfile << "\"" << cpt.getId() << "\","
                  << FixedFormat(param.ndpCoord) << cpt.coord()[0] << "," << cpt.coord()[1] << ","
                  << FixedFormat(param.ndpValue) << cpt.offset()[0] << "," << cpt.offset()[1] << ","
                  << cpt.calcOffset()[0] << "," << cpt.calcOffset()[1] << ","
-                 << cpt.offset()[0]-cpt.calcOffset()[0] << "," << cpt.offset()[1]-cpt.calcOffset()[1] << ","
+                 << (cpt.offset()[0]-cpt.calcOffset()[0]) << "," << (cpt.offset()[1]-cpt.calcOffset()[1]) << ","
                  << cpt.distanceResidual() << "," << cpt.stdResidual() << ",\""
                  << cpt.getClass().getName() << "\","
                  << cpt.getError() << "," 
