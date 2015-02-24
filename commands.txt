@@ -46,6 +46,9 @@ Command file:
     zero_outside_proximity
     
     distortion_error #.###
+    shear_weight #.###
+    scale_weight #.###
+    non_linear_weight #.###
     default_point_error #.###
 
     

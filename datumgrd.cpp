@@ -15,13 +15,13 @@ using namespace std;
 
 const int MAXREC = 256;
 
-int readPositiveNumber( istream &is, double &val, string &errmess, bool optional=false ) {
+int readPositiveNumber( istream &is, double &val, string &errmess, bool optional=false, bool zeroOk=false ) {
    is >> val;
    if( is.fail() ) {
       if( ! optional ) errmess = "Missing value";
       return 0;
       }
-   else if ( val <= 0.0 ) {
+   else if ( val <= 0.0 || (zeroOk && val == 0.0) ) {
       errmess = "Value must be positive";
       return 0;
       }
@@ -126,6 +126,16 @@ int readCommandFile( char *filename, GridParams &param, ControlPointList &pts ) 
 
        else if ( command == "distortion_error" ) {
            readPositiveNumber( record, param.distortionError, error );
+           }
+
+       else if ( command == "shear_weight" ) {
+           readPositiveNumber( record, param.shearWeight, error, false, true  );
+           }
+       else if ( command == "scale_weight" ) {
+           readPositiveNumber( record, param.scaleWeight, error, false, true  );
+           }
+       else if ( command == "non_linear_weight" ) {
+           readPositiveNumber( record, param.nonLinearWeight, error, false, true  );
            }
 
        else if ( command == "default_point_error" ) {
