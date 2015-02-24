@@ -258,7 +258,7 @@ int main( int argc, char *argv[] ) {
 
    // grid.dumpSpecTo( cout );
 
-   int success=CalculateGridModel( grid, points, gi, param.distortionError, param.calcStdRes );
+   int success=CalculateGridModel( grid, points, gi, param );
    if( ! success ) {
       cout << "Failed to calculate grid model" << endl;
       }

@@ -40,6 +40,9 @@ class GridParams {
        double maxPointProximity;
        bool zeroOutsideProximity;
        double distortionError;
+       double shearWeight;
+       double scaleWeight;
+       double nonLinearWeight;
        int  pointInfluenceRange;
        int ndpCoord;
        int ndpValue;
@@ -58,6 +61,9 @@ class GridParams {
           maxPointProximity(100000.0),
           zeroOutsideProximity(false),
           distortionError(1.0),
+          shearWeight(1.0),
+          scaleWeight(0.0),
+          nonLinearWeight(1.0),
           pointInfluenceRange(1),
           ndpCoord(0),
           ndpValue(4),

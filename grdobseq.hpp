@@ -24,13 +24,12 @@
 #endif
 
 void setupBandwidthDefinition( Grid &grd, BLT_Def &blt, int ptInfluenceRange );
-void setupDistortionParam( Grid &grd, double dstWeight );
+void setupDistortionParam( Grid &grd, GridParams &param );
 long sumDistortionConstraints( Grid &grd, LinearEquations &le, ProgressMeter &pm );
 long sumControlPoints( Grid &grd, ControlPointList &pts, GridInterpolator &gi,
     LinearEquations &le, ProgressMeter &pm );
 int CalculateGridModel( Grid &grd, ControlPointList &pts,
-                        GridInterpolator &gi, double dstError,
-                        bool calcStdRes=true );
+                        GridInterpolator &gi, GridParams &param );
 void writeGridDistortion( Grid &grd, GridParams &param, ostream &os );
 
 #endif

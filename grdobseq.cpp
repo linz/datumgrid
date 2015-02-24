@@ -94,11 +94,13 @@ void setupBandwidthDefinition( Grid &grd, BLT_Def &bltdef, int ptInfluenceRange 
 // in our solution.  These are set up for the grid element defined by the
 // four grid nodes (c,r), (c+1,r), (c,r+1), (c+1,r+1).
 
-static double distortionParam[4][8];
+static double distortionParam[5][8];
 static double affineParam[2][8];
+static int nDistortionParam;
 
-void setupDistortionParam( Grid &grd, double dstError ) {
+void setupDistortionParam( Grid &grd, GridParams &param ) {
    // 1000000.0 converts to ppm
+   double dstError=param.distortionError;
    double ddx=1000000.0/(grd.getScale()[0]*grd.getSpacing()[0]);
    double ddy=1000000.0/(grd.getScale()[1]*grd.getSpacing()[1]);
    double ddxy=sqrt(ddx*ddx+ddy*ddy);
@@ -114,10 +116,28 @@ void setupDistortionParam( Grid &grd, double dstError ) {
        dvdx[i] *= 0.5*ddx;
        dudy[i] *= 0.5*ddy;
        dvdy[i] *= 0.5*ddy;
-       distortionParam[0][i]=(dudx[i]-dvdy[i])/(dstError*2.0); // Shear1
-       distortionParam[1][i]=(dudy[i]+dvdx[i])/(dstError*2.0); // Shear2
-       distortionParam[2][i]=d2udxdy[i]*ddxy/(dstError*4.0); // Non linear 1
-       distortionParam[3][i]=d2vdxdy[i]*ddxy/(dstError*4.0); // Non linear 1
+       int nd=0;
+       if( param.shearWeight > 0.0 )
+       {
+           double obsweight=sqrt(param.shearWeight)/(dstError*2.0);
+           distortionParam[nd][i]=(dudx[i]-dvdy[i])*obsweight ; // Shear1
+           distortionParam[nd+1][i]=(dudy[i]+dvdx[i])*obsweight ; // Shear2
+           nd += 2;
+       }
+       if( param.nonLinearWeight > 0.0 )
+       {
+           double obsweight=sqrt(param.nonLinearWeight)/(dstError*4.0);
+           distortionParam[nd][i]=d2udxdy[i]*ddxy*obsweight; // Non linear 1
+           distortionParam[nd+1][i]=d2vdxdy[i]*ddxy*obsweight; // Non linear 1
+           nd += 2;
+       }
+       if( param.scaleWeight > 0.0 )
+       {
+           double obsweight=sqrt(param.scaleWeight)/(dstError*2.0);
+           distortionParam[nd][i]=(dudx[i]+dvdy[i])*obsweight; // Linear scale
+           nd++;
+       }
+       nDistortionParam=nd;
        affineParam[0][i]=(dudx[i]+dvdy[i])/2.0; // Linear scale
        affineParam[1][i]=(dudy[i]-dvdx[i])/2.0; // Rotation
    }
@@ -142,8 +162,8 @@ int DistortionObseqn( Grid &grd, long c, long r, Obseqn &oe ) {
        << " " << prmNo[3]
        << "\n";
 #endif
-   oe.Zero( 4, 0, 0 );
-   for( int d = 0; d < 4; d++ ) {
+   oe.Zero( nDistortionParam, 0, 0 );
+   for( int d = 0; d < nDistortionParam; d++ ) {
       double *dp = & distortionParam[d][0];
       for( int nod = 0; nod < 4; nod++ ) {
          if( prmNo[nod] == 0 ) continue;
@@ -219,7 +239,7 @@ void writeGridDistortion( Grid &grd, GridParams &param , ostream &os ) {
    long nc = grd.ncols() - 1;
    double xc = grd.getSpacing()[0]/2.0;
    double yc = grd.getSpacing()[1]/2.0;
-   setupDistortionParam( grd, 1.0 );
+   setupDistortionParam( grd, param );
    os << param.xcolname << "," << param.ycolname 
        << ",scale,rotation,distortion,shear,rlaxis,stdres\n";
    for( long r = 0; r < nr; r++ ) {
@@ -367,8 +387,7 @@ void calcControlPointListResiduals( Grid &grd, ControlPointList &pts, GridInterp
 
 
 int CalculateGridModel( Grid &grd, ControlPointList &pts,
-                        GridInterpolator &gi, double dstError,
-                        bool calcStdRes ) {
+                        GridInterpolator &gi, GridParams &param ) {
     AsciiBarMeter pm;
 
     // Set up the linear equations
@@ -392,7 +411,7 @@ int CalculateGridModel( Grid &grd, ControlPointList &pts,
     
     // Apply the distortion constraints
 
-    setupDistortionParam( grd, dstError );
+    setupDistortionParam( grd, param );
     nsum=sumDistortionConstraints( grd, le, pm );
     cout << "Summed " << nsum << " distortion constraints" << endl;
 
@@ -432,7 +451,7 @@ int CalculateGridModel( Grid &grd, ControlPointList &pts,
 
     // Update the control points with calculated values and residuals
 
-    calcControlPointListResiduals( grd, pts, gi, le, calcStdRes, pm );
+    calcControlPointListResiduals( grd, pts, gi, le, param.calcStdRes, pm );
     // calcGridStandardisedResiduals( grd, le, pm );
 
     return 1;
