@@ -239,7 +239,10 @@ void writeGridDistortion( Grid &grd, GridParams &param , ostream &os ) {
    long nc = grd.ncols() - 1;
    double xc = grd.getSpacing()[0]/2.0;
    double yc = grd.getSpacing()[1]/2.0;
+   double olderror=param.distortionError;
+   param.distortionError=1.0;
    setupDistortionParam( grd, param );
+   param.distortionError=olderror;
    os << param.xcolname << "," << param.ycolname 
        << ",scale,rotation,distortion,shear,rlaxis,stdres\n";
    for( long r = 0; r < nr; r++ ) {
