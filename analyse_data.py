@@ -1,15 +1,30 @@
 #!/usr/bin/python
 
 import sys
+import os
+import os.path
 import pandas as pd
 import numpy as np
+import argparse
 from subprocess import call
 
+parser=argparse.ArgumentParser(description='Iterative analysis of deformation field')
+parser.add_argument('-c','--calcdir',default='calcs',help='Subdirectory for output files')
+parser.add_argument('-f','--force-initial-reweighting',action='store_true',help='Force calculation of initial rejections')
+parser.add_argument('-i','--ignore-initial-reweighting',action='store_true',help='Ignore initial reweighting in iterative reweight solution')
+args=parser.parse_args()
+
 datadir='../data/'
-calcdir='../data/calcs/'
+calcdir='../data/'+args.calcdir
+if not os.path.exists( calcdir ):
+    os.makedirs(calcdir)
+calcdir = calcdir+'/'
 datafile='model_data.csv'
 gridsrc='grid_obs.csv'
 summary_file=calcdir+'reweight_summary.csv'
+analysis_log=calcdir+'analysis.log'
+if os.path.exists(analysis_log):
+    os.remove(analysis_log)
 
 lonrange=(172.45,128.8)
 latrange=(-43.63,-43.42)
@@ -19,7 +34,6 @@ alldata=pd.read_csv(datadir+datafile)
 data=alldata[(alldata.lon >= lonrange[0]) & (alldata.lat <= lonrange[1]) & (
              alldata.lat >= latrange[0]) & (alldata.lat <= latrange[1])]
 
-print len(data)," points being used"
 
 #data.lon=data.lon*70000;
 #data.lat=data.lat*100000;
@@ -70,6 +84,10 @@ def run_datumgrd( data_file, result_file, point_error=0.05, grid_spacing=0.01, p
     grdres=pd.read_csv(df+'_def.csv')
     return { 'cpt': cpt, 'grd': grd, 'grdres': grdres }
 
+def write_log(text):
+    with open(analysis_log,'a') as af:
+        af.write(text)
+
 def write_summary( version='',header=False):
     percentiles=(50.0,75.0,90.0,95.0,98.0,100.0)
     labels=["{0:.0f}".format(x) for x in percentiles]
@@ -92,6 +110,9 @@ def write_summary( version='',header=False):
         with open(summary_file,'a') as f:
             f.write(",".join(data))
             f.write("\n")
+
+print len(data)," points being used"
+write_log("{0} control points being used\n\n".format(len(data)))
 
 # Assess a suitable starting value for distortion error.  
 # Decided that 5 was a good value as allowed most of the deformation to be absorbed...
@@ -132,7 +153,11 @@ spacing=np.exp(np.linspace(np.log(grid_spacing_initial),np.log(grid_spacing_fina
 weighting=base_distortion_error*(grid_spacing_initial/spacing)
 weight_final=weighting[-1]
 
-if True:
+do_initial_reweighting = args.force_initial_reweighting
+if not do_initial_reweighting and not args.ignore_initial_reweighting:
+    do_initial_reweighting=not os.path.exists(calcdir+'final_grd.csv')
+
+if do_initial_reweighting:
     percent_used=5.0  # Percentage of standardised residuals considered
     min_std_res=5.0   # If all values are less than this then don't do anything.
     influence_radius=2000.0  # Points within this range of downgraded are not considered.
@@ -147,7 +172,9 @@ if True:
         distortion_error=weighting[0],
         calcstdres=True
     )
+
     for i in range(max_iterations+1):
+        write_log("\nInitial reweight iteration {0}\n".format(i))
         cpt=result['cpt']
         count=len(cpt.index)
         cpt.sort('stdres',ascending=False,inplace=True)
@@ -168,11 +195,13 @@ if True:
                     break
             if affected:
                 print "Skipping affected code:",code
+                write_log("Skipping affected code: {0}\n".format(code))
                 continue
             if code not in downgrades:
                 downgrades[code]=0.01
             downgrades[code] /= downgrade_factor
             print code,"downgraded error to",downgrades[code]
+            write_log("{0} downgraded error to {1:.5f}\n".format(code,downgrades[code]))
             updated=True
         # if not updated:
         #     break
@@ -202,7 +231,8 @@ if True:
 
 if True:
     version='final'
-    reweight_iterations=3
+    reweight_iterations=10
+    min_coord_change=0.01
     min_residual=0.05
     max_residual=0.2  # If greater than this then downweight further 
 
@@ -212,23 +242,29 @@ if True:
 
     weights=(0.1,0.2,0.5,1.0,2.0,5.0,10.0,20.0)
 
-    write_summary('final',header=True)
-    finalgrid=pd.read_csv(calcdir+'final_grd.csv')
+    write_summary(header=True)
+    if not args.ignore_initial_reweighting:
+        write_summary('final')
+        finalgrid=pd.read_csv(calcdir+'final_grd.csv')
 
     for w,weight in enumerate(weights):
         version='reweight'+str(w)
+        write_log("\nIterative reweighting {0}: distortion error {1}\n".format(w,weight))
         # Start with result of final so bad stations are initially downweighted
-        cptfile='final'
+        cptfile='' if args.ignore_initial_reweighting else 'final'
+        lastgrid=None
 
         for i in range(reweight_iterations):
-            df=calcdir+cptfile+'_cpt.csv'
-            cptfile=version # Successive iterations based on this file...
-            cpt=pd.read_csv(df)
-            err2=np.maximum(cpt.residual,min_residual)
-            err2 *= np.maximum(1,cpt.residual/max_residual)
+            write_log("  Iteration {0}\n".format(i))
             downgrades={}
-            for r in range(len(cpt.index)):
-                downgrades[cpt.id[r]]=err2[r]
+            if cptfile:
+                df=calcdir+cptfile+'_cpt.csv'
+                cpt=pd.read_csv(df)
+                err2=np.maximum(cpt.residual,min_residual)
+                err2 *= np.maximum(1,cpt.residual/max_residual)
+                for r in range(len(cpt.index)):
+                    downgrades[cpt.id[r]]=err2[r]
+            cptfile=version # Next iterations based on this file...
             result=run_datumgrd(
                 datadir+gridsrc,
                 calcdir+version,
@@ -236,16 +272,26 @@ if True:
                 grid_spacing=grid_spacing_final,
                 distortion_error=weight*weight_final
             )
+            grid=result['grd']
+            if lastgrid is not None:
+                de=grid.de-lastgrid.de
+                dn=grid.dn-lastgrid.dn
+                ds=np.sqrt(np.max(de*de+dn*dn))
+                write_log("    Maximum grid shift change {0:.4f}\n".format(ds))
+                if ds < min_coord_change:
+                    break
+            lastgrid=grid
 
         write_summary(version)
 
         # Calc difference between grids
 
-        rgrid=pd.read_csv(calcdir+version+'_grd.csv')
-        dde=rgrid.de-finalgrid.de
-        ddn=rgrid.dn-finalgrid.dn
-        dds=np.sqrt(dde*dde+ddn*ddn)
-        dif=pd.DataFrame({'lon':rgrid.lon,'lat':rgrid.lat,'dde':dde,'ddn':ddn,'dds':dds})
-        dif.to_csv(calcdir+'final-'+version+'-grid.csv',index=False,cols=('lon','lat','dde','ddn','dds'))
+        if not args.ignore_initial_reweighting:
+            rgrid=pd.read_csv(calcdir+version+'_grd.csv')
+            dde=rgrid.de-finalgrid.de
+            ddn=rgrid.dn-finalgrid.dn
+            dds=np.sqrt(dde*dde+ddn*ddn)
+            dif=pd.DataFrame({'lon':rgrid.lon,'lat':rgrid.lat,'dde':dde,'ddn':ddn,'dds':dds})
+            dif.to_csv(calcdir+'final-'+version+'-grid.csv',index=False,cols=('lon','lat','dde','ddn','dds'))
 
 # Recommend using version reweight4 as the residual errors match 

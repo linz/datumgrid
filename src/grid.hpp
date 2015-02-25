@@ -62,7 +62,7 @@ class GridParams {
           zeroOutsideProximity(false),
           distortionError(1.0),
           shearWeight(1.0),
-          scaleWeight(0.0),
+          scaleWeight(1.0),
           nonLinearWeight(1.0),
           pointInfluenceRange(1),
           ndpCoord(0),
