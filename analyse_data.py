@@ -9,43 +9,62 @@ import argparse
 from subprocess import call
 
 parser=argparse.ArgumentParser(description='Iterative analysis of deformation field')
-parser.add_argument('-c','--calcdir',default='calcs',help='Subdirectory for output files')
+parser.add_argument('input_file',help='Input deformation file')
+parser.add_argument('-c','--calcdir',help='Directory for output files')
 parser.add_argument('-f','--force-initial-reweighting',action='store_true',help='Force calculation of initial rejections')
 parser.add_argument('-i','--ignore-initial-reweighting',action='store_true',help='Ignore initial reweighting in iterative reweight solution')
 args=parser.parse_args()
 
-datadir='../data/'
-calcdir='../data/'+args.calcdir
+# Input file is a CSV file with columns
+# code,lon,lat,de,den,order
+
+def_input_file=args.input_file
+
+calcdir=args.calcdir or os.path.join(os.path.dirname(def_input_file),'calcs')
+
 if not os.path.exists( calcdir ):
     os.makedirs(calcdir)
+
 calcdir = calcdir+'/'
-datafile='model_data.csv'
-gridsrc='grid_obs.csv'
+
+# datafile='model_data.csv'
 summary_file=calcdir+'reweight_summary.csv'
 analysis_log=calcdir+'analysis.log'
 if os.path.exists(analysis_log):
     os.remove(analysis_log)
 
-lonrange=(172.45,128.8)
-latrange=(-43.63,-43.42)
-
-alldata=pd.read_csv(datadir+datafile)
-
-data=alldata[(alldata.lon >= lonrange[0]) & (alldata.lat <= lonrange[1]) & (
-             alldata.lat >= latrange[0]) & (alldata.lat <= latrange[1])]
-
-
-#data.lon=data.lon*70000;
-#data.lat=data.lat*100000;
-
-data.to_csv(datadir+gridsrc,index=False,cols=('code','lon','lat','de_dif','dn_dif','order'))
+# Reference value for distortion error (datumgrid parameter)
 
 base_distortion_error=25.0
 
-def run_datumgrd( data_file, result_file, point_error=0.05, grid_spacing=0.01, proximity=5000, distortion_error=base_distortion_error,
+# Phase 1 parameters
+#
+# Initial downweigthing of misfitting stations
+
+max_iterations=10  
+grid_spacing_initial=0.01 # Initial grid latitude spacing (longitude=latitude*1.5)
+grid_spacing_final=0.002  # Final grid latitude spacing (longitude=latitude*1.5)
+percent_used=5.0          # Percentage of standardised residuals considered
+min_std_res=5.0           # If all values are less than this then don't do anything.
+influence_radius=2000.0   # Points within this range of point already downgraded 
+                          # in current iteration are not considered.
+downgrade_factor=0.25     # Amount by which rejected station is downgraded
+
+# Phase 2 parameters
+#
+# Iterative reweighting of data .. details below
+
+reweight_iterations=10    # Number of reweighting iterations
+min_coord_change=0.01     # Tolerable coordinate change to end iterations
+min_residual=0.05         # Minumum residual - use normal weighting below this, 
+                          # otherwise reweight to 1-norm to avoid too much influence
+max_residual=0.2          # If greater than this then downweight further 
+
+
+def run_datumgrid( data_file, result_file, point_error=0.05, grid_spacing=0.01, proximity=5000, distortion_error=base_distortion_error,
                 downgrades=None, calcstdres=False ):
     dgcmd='''
-    # datumgrd control file
+    # datumgrid control file
 
     data_file {data_file}
     grid_spacing {grid_spacing}
@@ -78,7 +97,7 @@ def run_datumgrd( data_file, result_file, point_error=0.05, grid_spacing=0.01, p
         if downgrades:
             for k,v in downgrades.iteritems():
                 dgf.write("point {0} error {1}\n".format(k,v))
-    call(('./datumgrd',cmdf,df))
+    call(('./datumgrid',cmdf,df))
     cpt=pd.read_csv(df+'_cpt.csv')
     grd=pd.read_csv(df+'_grd.csv')
     grdres=pd.read_csv(df+'_def.csv')
@@ -125,7 +144,7 @@ if False:
     for i,error in enumerate((0.01,0.05,0.1,0.5,1.0,5.0,10.0,50.0,100.0)):
         error *= 5 # Changed point error from 0.01 to more realistic 0.05
         version='dg'+str(i)
-        result=run_datumgrd(datadir+gridsrc,calcdir+version,distortion_error=error)
+        result=run_datumgrid(def_input_file,calcdir+version,distortion_error=error)
         cpt=result['cpt']
         ssse=np.sum(cpt.stdres*cpt.stdres)
         pc=np.percentile(cpt.residual,(50,75,90,95,100))
@@ -140,9 +159,6 @@ if False:
 #  Iterative approach.  Downweight worst residual by factor of 10.  After doing this any other residuals within
 #  a given radius are left till the next iteration.  Only top x% of S.Rs are considered.
 
-max_iterations=10
-grid_spacing_initial=0.01
-grid_spacing_final=0.002
 spacing=np.exp(np.linspace(np.log(grid_spacing_initial),np.log(grid_spacing_final),max_iterations+1))
 # Just need to sort out grid weighting so that finer grid doesn't increase distortion constraint...
 # Experimentally it appears that reducing the spacing by a factor of 2 increases the influence of the
@@ -158,15 +174,12 @@ if not do_initial_reweighting and not args.ignore_initial_reweighting:
     do_initial_reweighting=not os.path.exists(calcdir+'final_grd.csv')
 
 if do_initial_reweighting:
-    percent_used=5.0  # Percentage of standardised residuals considered
-    min_std_res=5.0   # If all values are less than this then don't do anything.
-    influence_radius=2000.0  # Points within this range of downgraded are not considered.
-    downgrade_factor=0.25
+    print "Analysis phase 1: Initial station downweighting"
     downgrades={}
 
     
-    result=run_datumgrd(
-        datadir+gridsrc,
+    result=run_datumgrid(
+        def_input_file,
         calcdir+'reject0',
         grid_spacing=spacing[0],
         distortion_error=weighting[0],
@@ -207,9 +220,9 @@ if do_initial_reweighting:
         #     break
         version='reject'+str(i)
         if i == max_iterations:
-            version='final'
-        result=run_datumgrd(
-            datadir+gridsrc,
+            version='reject_final'
+        result=run_datumgrid(
+            def_input_file,
             calcdir+version,
             downgrades=downgrades,
             grid_spacing=spacing[i],
@@ -230,11 +243,9 @@ if do_initial_reweighting:
 # Treat residuals greater than max_residual as disturbed, so downweight further
 
 if True:
-    version='final'
-    reweight_iterations=10
-    min_coord_change=0.01
-    min_residual=0.05
-    max_residual=0.2  # If greater than this then downweight further 
+    print "Analysis phase 2: Iterative station reweighting for a range of distortion weightings" 
+
+    version='reject_final'
 
     # Also want to reduce the distortion restriction somewhat to allow more locallised 
     # deformation, so do this in conjunction with reweighting.  Not sure if this really a good
@@ -244,8 +255,8 @@ if True:
 
     write_summary(header=True)
     if not args.ignore_initial_reweighting:
-        write_summary('final')
-        finalgrid=pd.read_csv(calcdir+'final_grd.csv')
+        write_summary('reject_final')
+        finalgrid=pd.read_csv(calcdir+'reject_final_grd.csv')
 
     for w,weight in enumerate(weights):
         version='reweight'+str(w)
@@ -265,8 +276,8 @@ if True:
                 for r in range(len(cpt.index)):
                     downgrades[cpt.id[r]]=err2[r]
             cptfile=version # Next iterations based on this file...
-            result=run_datumgrd(
-                datadir+gridsrc,
+            result=run_datumgrid(
+                def_input_file,
                 calcdir+version,
                 downgrades=downgrades,
                 grid_spacing=grid_spacing_final,

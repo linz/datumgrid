@@ -17,20 +17,20 @@ LIBO=$(LIBFILES:.cpp=.o)
 
 CPPFLAGS=-g
 
-all: ../datumgrd ../griddef
+all: ../datumgrid ../griddef
 
 libdatumgrid.a: $(LIBO)
 	ar -rc libdatumgrid.a $(LIBO)
 	ranlib libdatumgrid.a
 
 
-../datumgrd: datumgrd.o libdatumgrid.a
-	g++ $(CPP_FLAGS) datumgrd.o libdatumgrid.a -lm -o ../datumgrd
+../datumgrid: datumgrid.o libdatumgrid.a
+	g++ $(CPP_FLAGS) datumgrid.o libdatumgrid.a -lm -o ../datumgrid
 ../griddef: griddef.o libdatumgrid.a
 	g++ $(CPP_FLAGS) griddef.o libdatumgrid.a -lm -o ../griddef
 
 clean:
-	rm -f $(LIBO) datumgrd.o  griddef.o libdatumgrd.a
+	rm -f $(LIBO) datumgrid.o  griddef.o libdatumgrid.a
 # 
 # classtst: classtst.o libdatumgrid.a
 # 	g++ $(CPP_FLAGS) classtst.o libdatumgrid.a -lm -o classtst

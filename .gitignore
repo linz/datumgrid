@@ -1,0 +1,4 @@
+*.o
+datumgrid
+griddef
+src/libdatumgrid.a

@@ -8,7 +8,7 @@ distortion).
 
 Data file:
     
-    Space separated file containing:
+    Space or comma separated file containing:
     
     	id east north deast dnorth class [error]
     
