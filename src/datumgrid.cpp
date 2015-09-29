@@ -56,6 +56,7 @@ int readBool( istream &is, bool &val, string &errmess ) {
    bool result=true;
    if( option == "false" || option == "no" ) result=false;
    val=result;
+   return 1;
 }
 
 
