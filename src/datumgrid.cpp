@@ -341,7 +341,9 @@ int main( int argc, char *argv[] ) {
          if( grid.isValidPoint(c,r) ) {
             offset = grid(c,r).dxy;
             paramno=grid(c,r).paramno;
-            if(paramno <= 0 ) mode="zero"; else mode="calc";
+            if(paramno < 0 ) mode="ignore"; 
+            else if(paramno <= 0 ) mode="zero"; 
+            else mode="calc";
             }
          else if( ! param.fillGrid ) continue;
          grdfile << FixedFormat(param.ndpCoord) << xy[0] << "," << xy[1] << ","
@@ -374,8 +376,8 @@ int main( int argc, char *argv[] ) {
       cptfile << "calc" << param.dxcolname << ",";
       if( ! heightGrid ) cptfile << "calc" << param.dycolname << ",";
       cptfile << "res" << param.dxcolname << ",";
-      if( ! heightGrid ) cptfile << "res" << param.dycolname << ",";
-      cptfile << "residual,stdres,class,error,used\n";
+      if( ! heightGrid ) cptfile << "res" << param.dycolname << "," << "residual,";
+      cptfile << "stdres,class,error,used\n";
 
       for( long i = 0; i < points.size(); i++ ) {
          ControlPoint &cpt = * points[i];
@@ -387,8 +389,8 @@ int main( int argc, char *argv[] ) {
          cptfile << cpt.calcOffset()[0] << ",";
          if( ! heightGrid ) cptfile << cpt.calcOffset()[1] << ",";
          cptfile << (cpt.offset()[0]-cpt.calcOffset()[0]) << ",";
-         if( ! heightGrid ) cptfile << (cpt.offset()[1]-cpt.calcOffset()[1]) << ",";
-         cptfile << cpt.distanceResidual() << "," << cpt.stdResidual() << ",\"";
+         if( ! heightGrid ) cptfile << (cpt.offset()[1]-cpt.calcOffset()[1]) << "," << cpt.distanceResidual() << ",";
+         cptfile << cpt.stdResidual() << ",\"";
          cptfile << cpt.getClass().getName() << "\",";
          cptfile << cpt.getError() << "," ;
          cptfile << (cpt.isRejected() ? 0 : 1) <<  endl;

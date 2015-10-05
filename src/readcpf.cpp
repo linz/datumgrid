@@ -48,8 +48,9 @@ int readControlPointFile( string filename, ControlPointList &list, bool heightPo
 
        record >> x >> y >> dx;
        if( ! heightPoints ) record >> dy;
-       record  >> ptclass;
        if( ! record.fail() ) {
+          record  >> ptclass;
+          if( record.fail() ) ptclass="default";
           ControlPoint *cpt=new ControlPoint( id, x, y, dx, dy, ptclass );
           record >> error;
           if( ! record.fail() ) cpt->setError( error );

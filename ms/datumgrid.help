@@ -6,76 +6,140 @@ balances two factors, 1) matching the point displacements, and 2)
 minimizing the distortion in each grid cell (ie shear and non-linear 
 distortion).
 
+Running the program:
+
+To run the program create a data file and a command file (below).  Then
+run the command using
+
+datumgrid command_file_name output_file
+
+Here command_file_name is the name of the command file, and output_file
+is the root name of the output file.  Output files will be generated
+named 
+
+<output_file>_grd.csv   The calculated grid node offsets
+<output_file>_cpt.csv   The control point data and residuals
+<output_file>.log       The log file of the output
+
+
 Data file:
     
     Space or comma separated file containing:
     
-    	id east north deast dnorth class [error]
+    	id east north deast dnorth [class [error]]
+    	id east north dheight [class [error]]
     
-    east and north coordinates are in the same units as the final 
-    grid.  deast, dnorth in metres.  Command file defines a scale
-    factor from east/north coordinates to metres.  The error can 
-    be supplied, otherwise it will be based on a default error or
-    class based error defined in the command file.
+    (the second format is for height grids). 
+    The east and north coordinates can be in any units (eg lat/lon
+    degrees or easting/northing metres).  Whichever is used the final
+    grid will be in the same units.
+    The offset at each point (deast/dnorth or dheight) are in metres
+
+    The command file defines the approximate relationship between the 
+    coordinate units and metres (in coordinate to metres)
+    factor from east/north coordinates to metres.  
+    The error of the deast/dnorth or dheight values can be explicitly
+    defined, otherwise it is based on the default point error or class
+    based error defined in the command file.
     
-    For height grid just use dheight instead of deast, dnorth
-    May contain comments prefixed with ! or #
+    The file may contain comment lines prefixed with ! or #
     
 Command file:
     
-    Commands one per line.  Comments prefixed with ! or #.
-    Grid spacing is defined in east/north units.
-    Required_point_proximity defines the minimum extent around 
-    points that the grid will extend in metres.
-    beyond_proximity controls how the grid is fitted for cells beyond
-    the required point proximity.  Options are fit, in which case the
-    distortion constraints are applied to these cells, and they therefore
-    influence the fit of the rest of the grid (and so the boundary limits
-    influence the fit), zero in which case the grid values are forced to 
-    zero, and ignore in which case distortion constraints do not apply,
-    and points beyond the extents do not influence the grid.
-    distortion_error and default_point_error define the errors
-    (weighting) applied to the control points and grid cell 
-    distortion.  
-    Point errors can also be defined on a per class basis, or
-    for individual points in the command file.  If specified
-    for specific points they over-ride errors specified in 
-    otherwise they do not.
-    Points and classes of points may also be rejected from the 
-    calculation.
-    
-    height_grid [true|false]
-    data_file  filename
-    # Convert control point/grid coordinate units to metres 
-    # for proximity and calculating distortion.  
-    # For lat/lon grids will typically be something like
-    # 70000.0 100000.0.  For metre grids default 1 1 is correct.
+    The command file controls how the distortion grid is calculated.
 
-    coordinate_to_metres #.### [#.###]
-    grid_spacing #.### [#.###]
-    required_point_proximity #.####
-    beyond_proximity [fit|zero|ignore]
-    
-    distortion_error #.###
-    shear_weight #.###
-    scale_weight #.###
-    non_linear_weight #.###
-    constant_weight #.### 
-    default_point_error #.###
+    It contains one command per line.  It may also include comments
+    on lines prefixed with ! or #.
 
-    # For height grids only non_linear_weight and constant_weight apply
-    # For xy grids constant_error doesn't apply
-    # non_linear_weight is not adequately defined for height grids
-    # (only generates one constraint per grid cell).
+    Most commands are optional and a default value will be used if they
+    are not specified.
     
-    point id [error #.###] [reject]
-    class cc [error #.###] [reject]
+    The following template can be used to create a command file.  In
+    this values in [] are optional.  #.### are placeholders for numbers.
+    [value1|value2..] signifies a choice of possible values.
+    
 
-    # Output options
-    columns xcol ycol dxcol dycol
-    coordinate_precision #
-    value_precision #
-    print_grid_params [true|false] (parameter numbers)
-    fill_grd [true|false] (to rectangle)
-    calc_standardised_residuals [true|false] (of control points)
-    
+Command file template:
+
+# Used to define a height grid (by default a grid of dx dy offsets is calculated)
+
+height_grid [true|false]
+
+# Specify the name of the data file containing the control points.  More than
+# one data file can be used.
+
+data_file  filename
+
+# Convert control point/grid coordinate units to metres 
+# for proximity and calculating distortion.  
+# For lat/lon grids will typically be something like
+# 70000.0 100000.0.  For metre grids default 1 1 is correct.
+
+coordinate_to_metres #.### [#.###]
+grid_spacing #.### [#.###]
+required_point_proximity #.####
+beyond_proximity [fit|zero|ignore]
+
+# The two main factors affecting the fit are the expected 
+# errors of the dx/dy or dh control point data and the
+# expected distortion error in each grid cell.  Making the 
+# default_point_error greater gives less weight to the 
+# control points, and making the distortion error greater 
+# gives less weight to the distortion constraints (ie allows
+# more distortion in the final grid).
+# The default_point_error is in units of metres, and the
+# distortion_error in units of approximately part per million.
+
+default_point_error #.###
+distortion_error #.###
+
+# The distortion error applies to a number of components of
+# distortion for which different relative weights can be
+# applied. In particular if the weight is zero the distortion
+# is ignored and does not constrain the grid.  Generally these 
+# should be numbers between 0 and 1.  The precise meaning
+# of the distortion error and weights can only be understood by
+# reading the code implementation in grdobseq.c!
+
+# For height grids only non_linear_weight and constant_weight apply
+# For xy grids constant_error doesn't apply
+# non_linear_weight is not adequately defined for height grids
+# (it only generates one constraint per grid cell as currently implemented).
+
+shear_weight #.###
+scale_weight #.###
+non_linear_weight #.###
+constant_weight #.### 
+
+# Point errors can also be defined on a per class basis, or
+# for individual points in the command file.  If specified
+# for specific points they override class errors, and if defined
+# for a class that overrides the default point errlr.
+
+point id [error #.###] [reject]
+class cc [error #.###] [reject]
+
+# Output options
+
+# Specify the column names for the output grid x, y, dx, dy 
+# columns (x, y, dh for height grids)
+columns xcol ycol dxcol dycol
+
+# Number of decimal places used for x, y coordinates
+coordinate_precision #
+
+# Number of decimal places used for dx, dy or dh values
+value_precision #
+
+# If true then include additional columns in the grid
+print_grid_params [true|false] (parameter numbers)
+
+# If true then the full grid is output, otherwise only the points
+# within the specified proximity are output
+fill_grd [true|false]
+
+# If true then the control point output listing includes 
+# standardised residuals (more useful, but time consuming to
+# calculate for large grids)
+calc_standardised_residuals [true|false]
+
