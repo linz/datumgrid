@@ -280,7 +280,7 @@ int main( int argc, char *argv[] ) {
    GridParams param;
 
    if( argc < 3 ) {
-      cout << "Syntax: datumgrd command_file_name output_file\n\n";
+      cout << "Syntax: datumgrid command_file_name output_file\n\n";
       cout << "The output file name is the root name for three output files\n";
       cout << "   xxxxx_cpt.csv  xxxxx_grd.csv  xxxxx_def.csv\n";
       return 0;

@@ -1,4 +1,7 @@
 *.o
+*.obj
+*.exe
 datumgrid
 griddef
 src/libdatumgrid.a
+datumgrid.help
