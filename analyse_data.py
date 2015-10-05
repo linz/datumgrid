@@ -70,7 +70,7 @@ def run_datumgrid( data_file, result_file, point_error=0.05, grid_spacing=0.01, 
     grid_spacing {grid_spacing}
     coordinate_to_metres 73000 100000
     required_point_proximity {proximity}
-    zero_outside_proximity
+    beyond_proximity zero
 
     distortion_error {dist_error}
     default_point_error {point_error}
