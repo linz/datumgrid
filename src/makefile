@@ -17,12 +17,15 @@ LIBO=$(LIBFILES:.cpp=.o)
 
 CPPFLAGS=-g
 
-all: ../datumgrid ../griddef
+all: ../datumgrid ../griddef ../datumgrid.help
 
 libdatumgrid.a: $(LIBO)
 	ar -rc libdatumgrid.a $(LIBO)
 	ranlib libdatumgrid.a
 
+
+../datumgrid.help: datumgrid.help
+	cp datumgrid.help ..
 
 ../datumgrid: datumgrid.o libdatumgrid.a
 	g++ $(CPP_FLAGS) datumgrid.o libdatumgrid.a -lm -o ../datumgrid
