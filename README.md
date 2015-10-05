@@ -25,3 +25,6 @@ defining parameters of the fit.  See the datumgrid.help file for more informatio
 
 The analyse_data python script is an example of an iterative reweighting script.  The other scripts
 are best ignored!
+
+This is definitely a "research" program .. though it is only slightly modified from the version that 
+was used to create the official transformation from the NZGD1949 datum to the NZGD2000 datum in 1999.
