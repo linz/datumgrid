@@ -86,7 +86,7 @@ void setupBandwidthDefinition( Grid &grd, BLT_Def &bltdef, int ptInfluenceRange 
                }
             }
           bltdef.SetNonZero( prm1, prm2 );
-          bltdef.SetNonZero( prm1 + 1, prm2 );
+          if( ! grd.isHeightGrid() ) bltdef.SetNonZero( prm1 + 1, prm2 );
          }
       }
    }
@@ -111,13 +111,14 @@ void setupDistortionParam( Grid &grd, GridParams &param ) {
    double dvdy[8]={0,-1,0,1,0,-1,0,1};
    double d2udxdy[8]={-1,0,1,0,1,0,-1,0};
    double d2vdxdy[8]={0,-1,0,1,0,1,0,-1};
+   int nd=0;
    for( int i=0; i<8; i++ )
    {
+       nd=0;
        dudx[i] *= 0.5*ddx;
        dvdx[i] *= 0.5*ddx;
        dudy[i] *= 0.5*ddy;
        dvdy[i] *= 0.5*ddy;
-       int nd=0;
        if( param.shearWeight > 0.0 )
        {
            double obsweight=sqrt(param.shearWeight)/(dstError*2.0);
@@ -138,10 +139,44 @@ void setupDistortionParam( Grid &grd, GridParams &param ) {
            distortionParam[nd][i]=(dudx[i]+dvdy[i])*obsweight; // Linear scale
            nd++;
        }
-       nDistortionParam=nd;
        affineParam[0][i]=(dudx[i]+dvdy[i])/2.0; // Linear scale
        affineParam[1][i]=(dudy[i]-dvdx[i])/2.0; // Rotation
    }
+   nDistortionParam=nd;
+   }
+
+void setupHeightDistortionParam( Grid &grd, GridParams &param ) {
+   // 1000000.0 converts to ppm
+   double dstError=param.distortionError;
+   double ddx=1000000.0/(grd.getScale()[0]*grd.getSpacing()[0]);
+   double ddy=1000000.0/(grd.getScale()[1]*grd.getSpacing()[1]);
+   double ddxy=sqrt(ddx*ddx+ddy*ddy);
+   double c1[8]={-0.75,0,0.25,0,0.25,0,0.25,0};
+   double c2[8]={0.25,0,-0.75,0,0.25,0,0.25,0};
+   double c3[8]={0.25,0,0.25,0,-0.75,0,0.25,0};
+   double c4[8]={0.25,0,0.25,0,0.25,0,-0.75,0};
+   double t1[8]={-1,0,1,0,-1,0,1,0};
+   double cobsweight=sqrt(param.nonConstantWeight)*ddxy/(dstError*2.0);
+   double tobsweight=sqrt(param.nonLinearWeight)*ddxy/(dstError*2.0);
+   int nd=0;
+   for( int i=0; i<8; i++ )
+   {
+       nd=0;
+       if( param.nonConstantWeight > 0.0 )
+       {
+           distortionParam[nd][i]=c1[i]*cobsweight ; 
+           distortionParam[nd+1][i]=c2[i]*cobsweight ; 
+           distortionParam[nd+2][i]=c3[i]*cobsweight ; 
+           distortionParam[nd+3][i]=c4[i]*cobsweight ; 
+           nd += 4;
+       }
+       if( param.nonLinearWeight > 0.0 )
+       {
+           distortionParam[nd][i]=t1[i]*tobsweight; // Non linear 1
+           nd += 1;
+       }
+   }
+   nDistortionParam=nd;
    }
 
 
@@ -151,11 +186,11 @@ int DistortionObseqn( Grid &grd, long c, long r, Obseqn &oe ) {
    prmNo[1] = grd.paramNo( c+1, r ); if( prmNo[1] < 0 ) return 0;
    prmNo[2] = grd.paramNo( c, r+1 ); if( prmNo[2] < 0 ) return 0;
    prmNo[3] = grd.paramNo( c+1, r+1 ); if( prmNo[3] < 0 ) return 0;
+#ifdef DEBUG_GRDOBSEQ
    double xy0[2];
    double xy1[2];
    grd.convert(c,r,xy0);
    grd.convert(c+1,r+1,xy1);
-#ifdef DEBUG_GRDOBSEQ
    cout << "distortion " << (xy0[0]+xy1[0])/2.0 << " " << (xy0[1]+xy1[1])/2.0 
        << " " << prmNo[0]
        << " " << prmNo[1]
@@ -163,16 +198,20 @@ int DistortionObseqn( Grid &grd, long c, long r, Obseqn &oe ) {
        << " " << prmNo[3]
        << "\n";
 #endif
+   int valid=0;
+   bool heightGrid=grd.isHeightGrid();
    oe.Zero( nDistortionParam, 0, 0 );
    for( int d = 0; d < nDistortionParam; d++ ) {
       double *dp = & distortionParam[d][0];
       for( int nod = 0; nod < 4; nod++ ) {
          if( prmNo[nod] == 0 ) continue;
+         valid=1;
          oe.A(d+1,prmNo[nod]) = *dp++;
-         oe.A(d+1,prmNo[nod]+1) = *dp++;
+         if( ! heightGrid ) oe.A(d+1,prmNo[nod]+1) = *dp;
+         dp++;
          }
       }
-   return 1;
+   return valid;
    }
 
 
@@ -189,6 +228,9 @@ long sumDistortionConstraints( Grid &grd, LinearEquations &le, ProgressMeter &pm
       for( long c = 0; c < nc; c++ ) {
          if( DistortionObseqn( grd, c, r, oe )) 
          {
+#ifdef DEBUG_GRDOBSEQ
+             cout << oe;
+#endif
              oe.SumInto( le );
              nsum++;
          }
@@ -236,6 +278,7 @@ void calcGridStandardisedResiduals( Grid &grd, LinearEquations &le, ProgressMete
 
 
 void writeGridDistortion( Grid &grd, GridParams &param , ostream &os ) {
+   if( grd.isHeightGrid() ) return;
    long nr = grd.nrows() - 1;
    long nc = grd.ncols() - 1;
    double xc = grd.getSpacing()[0]/2.0;
@@ -324,25 +367,56 @@ void ControlPointObseqn( Grid &grd, ControlPoint &cp, GridInterpolator &gi,
     }
 
 
+void HeightControlPointObseqn( Grid &grd, ControlPoint &cp, GridInterpolator &gi,
+    Obseqn &oe ) {
+    oe.Zero( 1, 0, 0 );
+    gi.setupInterpolationPoint( cp.coord(), grd );
+#ifdef DEBUG_GRDOBSEQ
+    cout << "cpt " << cp.getId() << ":";
+#endif
+    for( int ip = 0; ip < gi.nInterpolationPoints(); ip++ ) {
+       GridInterpolationPoint &gip = *gi[ip];
+       long prmNo = grd.paramNo( gip.col, gip.row );
+       if( prmNo <= 0 ) continue;
+#ifdef DEBUG_GRDOBSEQ
+       cout << " " << prmNo 
+           << " " << gip.dx[0];
+#endif
+       oe.A(1, prmNo ) = gip.dx[0];
+       }
+    oe.y(1) = cp.offset()[0];
+    double wgt = 1.0/cp.getError();
+    wgt *= wgt;
+    oe.w(1) = wgt;
+#ifdef DEBUG_GRDOBSEQ
+     cout <<  " weight " << wgt << "\n";
+#endif
+    }
+
+
 long sumControlPoints( Grid &grd, ControlPointList &pts, GridInterpolator &gi,
     LinearEquations &le, ProgressMeter &pm ) {
     pm.Start("Adding control points",pts.size() );
     Obseqn oe(2);
     int nsum=0;
+    bool heightGrid = grd.isHeightGrid();
     for( int i = 0; i < pts.size(); i++ ) {
 #ifndef DEBUG_GRDOBSEQ
        pm.Update(i);
 #endif
        ControlPoint &cp = *pts[i];
        if( cp.isRejected() ) continue;
-       ControlPointObseqn( grd, cp, gi, oe );
+       if( heightGrid ) HeightControlPointObseqn( grd, cp, gi, oe );
+       else ControlPointObseqn( grd, cp, gi, oe );
+#ifdef DEBUG_GRDOBSEQ
+       cout << oe;
+#endif
        oe.SumInto( le );
        nsum++;
        }
     pm.Finish();
     return nsum;
     }
-
 
 
 void calcControlPointResidual( Grid &grd, ControlPoint &cp, GridInterpolator &gi,
@@ -376,15 +450,43 @@ void calcControlPointResidual( Grid &grd, ControlPoint &cp, GridInterpolator &gi
     }
     }
 
+void calcHeightControlPointResidual( Grid &grd, ControlPoint &cp, GridInterpolator &gi,
+    LinearEquations &le, bool calcStdRes ) {
+    Obseqn oe(1,0,0);
+    HeightControlPointObseqn( grd, cp, gi, oe );
+    leVector calc(1);
+    SymMatrix cvr(1);
+    SymMatrix *ptrCvr = calcStdRes ? &cvr : 0;
+    if( ! oe.CalcValue( le, &calc, ptrCvr )) { return; }
+    cp.calcOffset()[0] = calc(1);
+    double tmpvec[1], tmpcvr[1];
+    tmpvec[0] = cp.calcOffset()[0] - cp.offset()[0];
+    cp.distanceResidual() = fabs( tmpvec[0] );
+    if( calcStdRes )
+    {
+        double sign =  cp.isRejected() ? 1 : -1;
+        double wgt = cp.getError();
+        wgt *= wgt;
+        wgt = wgt + sign * cvr(1,1);
+        cp.stdResidual() = wgt > 0 ? cp.distanceResidual()/sqrt(wgt) : 1.0;
+    }
+    else
+    {
+        cp.stdResidual()=0.0;
+    }
+    }
+
 
 
 void calcControlPointListResiduals( Grid &grd, ControlPointList &pts, GridInterpolator &gi,
     LinearEquations &le, bool calcStdRes, ProgressMeter &pm ) {
     pm.Start("Calculating control point residuals",pts.size() );
+    bool heightGrid = grd.isHeightGrid();
     for( int i = 0; i < pts.size(); i++ ) {
        pm.Update(i);
        ControlPoint &cp = *pts[i];
-       calcControlPointResidual( grd, cp, gi, le, calcStdRes );
+       if( heightGrid ) calcHeightControlPointResidual( grd, cp, gi, le, calcStdRes );
+       else calcControlPointResidual( grd, cp, gi, le, calcStdRes );
        }
     pm.Finish();
     }
@@ -393,6 +495,7 @@ void calcControlPointListResiduals( Grid &grd, ControlPointList &pts, GridInterp
 int CalculateGridModel( Grid &grd, ControlPointList &pts,
                         GridInterpolator &gi, GridParams &param ) {
     AsciiBarMeter pm;
+    bool heightGrid=grd.isHeightGrid();
 
     // Set up the linear equations
 
@@ -415,7 +518,8 @@ int CalculateGridModel( Grid &grd, ControlPointList &pts,
     
     // Apply the distortion constraints
 
-    setupDistortionParam( grd, param );
+    if( heightGrid) setupHeightDistortionParam( grd, param );
+    else setupDistortionParam( grd, param );
     nsum=sumDistortionConstraints( grd, le, pm );
     cout << "Summed " << nsum << " distortion constraints" << endl;
 
@@ -441,7 +545,7 @@ int CalculateGridModel( Grid &grd, ControlPointList &pts,
             long prmNo = grd.paramNo( c, r );
             if( prmNo <= 0 ) continue;
             grd(c,r).dxy[0] = le.Param(prmNo);
-            grd(c,r).dxy[1] = le.Param(prmNo+1);
+            if( ! heightGrid) grd(c,r).dxy[1] = le.Param(prmNo+1);
             }
         }
     pm.Finish();

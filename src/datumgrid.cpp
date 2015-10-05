@@ -21,7 +21,7 @@ int readPositiveNumber( istream &is, double &val, string &errmess, bool optional
       if( ! optional ) errmess = "Missing value";
       return 0;
       }
-   else if ( val <= 0.0 || (zeroOk && val == 0.0) ) {
+   else if ( val < 0.0 || (val == 0.0 && ! zeroOk) ) {
       errmess = "Value must be positive";
       return 0;
       }
@@ -94,12 +94,20 @@ int readCommandFile( char *filename, GridParams &param, ControlPointList &pts ) 
               error = "Data file name missing";
               }
            else {
-              if( ! readControlPointFile( df, pts ) ) {
+              if( ! readControlPointFile( df, pts, param.heightGrid ) ) {
                  error = "No control points in control point file\n";
                  }
               }
            }
 
+       else if ( command == "height_grid" ) {
+           if( pts.size() > 0 )
+           {
+               error = "height_grid option must be before data_file";
+           }
+           readBool(record,param.heightGrid,error);
+           if( param.heightGrid ) param.dxcolname="dh";
+           }
        else if ( command == "grid_spacing" ) {
            readPositiveNumber( record, param.xSpacing, error );
            if( ! readPositiveNumber( record, param.ySpacing, error, true ))
@@ -120,11 +128,26 @@ int readCommandFile( char *filename, GridParams &param, ControlPointList &pts ) 
            readPositiveNumber( record, param.maxPointProximity, error );
            }
 
-       else if ( command == "zero_outside_proximity" ) {
-           param.zeroOutsideProximity=true;
+       else if ( command == "beyond_proximity" ) {
+           string option;
+           record >> option;
+           if( option == "fit" )
+           {
+               param.boundaryOption=GridParams::grdFit;
            }
-
-
+           else if( option == "zero" )
+           {
+               param.boundaryOption=GridParams::grdZero;
+           }
+           else if( option == "ignore" )
+           {
+               param.boundaryOption=GridParams::grdIgnore;
+           }
+           else
+           {
+               error = "beyond_proximity option must be one of \"fit\", \"zero\", or \"ignore\"";
+           }
+           }
        else if ( command == "distortion_error" ) {
            readPositiveNumber( record, param.distortionError, error );
            }
@@ -134,6 +157,9 @@ int readCommandFile( char *filename, GridParams &param, ControlPointList &pts ) 
            }
        else if ( command == "scale_weight" ) {
            readPositiveNumber( record, param.scaleWeight, error, false, true  );
+           }
+       else if ( command == "constant_weight" ) {
+           readPositiveNumber( record, param.nonConstantWeight, error, false, true  );
            }
        else if ( command == "non_linear_weight" ) {
            readPositiveNumber( record, param.nonLinearWeight, error, false, true  );
@@ -206,7 +232,8 @@ int readCommandFile( char *filename, GridParams &param, ControlPointList &pts ) 
            }
 
        else if ( command == "columns" ) {
-           record >> param.xcolname >> param.ycolname >> param.dxcolname >> param.dycolname;
+           record >> param.xcolname >> param.ycolname >> param.dxcolname;
+           if( ! param.heightGrid ) record >> param.dycolname;
            if( record.fail() )
            {
                error="Missing column names";
@@ -254,7 +281,12 @@ int main( int argc, char *argv[] ) {
       return 0;
       }
 
+
+   bool heightGrid = param.heightGrid;
    string rootfilename = argv[2];
+   string logfilename = rootfilename + "_log.txt";
+   ofstream logfile( logfilename.c_str() );
+   logfile << "Config file: " << argv[0] << endl;
 
 // Set up an interpolator
 
@@ -266,16 +298,16 @@ int main( int argc, char *argv[] ) {
    Grid grid( param, points );
    cout << "Grid specification" << endl;
    grid.dumpSpecTo(cout);
+   logfile << "Grid specification" << endl;
+   grid.dumpSpecTo(logfile);
 
    // grid.dumpSpecTo( cout );
 
    int success=CalculateGridModel( grid, points, gi, param );
    if( ! success ) {
       cout << "Failed to calculate grid model" << endl;
+      logfile << "Failed to calculate grid model" << endl;
       }
-
-   string logfilename = rootfilename + "_log.txt";
-   ofstream logfile( logfilename.c_str() );
 
    // Write grid file... */
    {
@@ -284,11 +316,10 @@ int main( int argc, char *argv[] ) {
       ofstream grdfile( outputfile.c_str() );
       cout << "Writing grid to " << outputfile << endl;
       // grdfile << "x,y,dx,dy,calc,paramno\n";
-      grdfile 
-              << param.xcolname << ","
+      grdfile << param.xcolname << ","
               << param.ycolname << ","
-              << param.dxcolname << ","
-              << param.dycolname;
+              << param.dxcolname;
+      if( ! heightGrid )  grdfile << "," << param.dycolname;
       if( param.printGridParams ) grdfile << ",mode,paramno";
       grdfile << "\n";
       double zeroOffset[2]={0,0};
@@ -305,11 +336,12 @@ int main( int argc, char *argv[] ) {
             }
          else if( ! param.fillGrid ) continue;
          grdfile << FixedFormat(param.ndpCoord) << xy[0] << "," << xy[1] << ","
-                    << FixedFormat(param.ndpValue) << offset[0] << "," << offset[1];
+                    << FixedFormat(param.ndpValue) << offset[0];
+         if( ! heightGrid ) grdfile << "," << offset[1];
          if( param.printGridParams ) grdfile << "," << mode << "," << paramno;
          grdfile << endl;
          }
-
+      logfile << "Grid written to " << outputfile << endl;
       }
 
    if( ! success ) return 0;
@@ -325,27 +357,32 @@ int main( int argc, char *argv[] ) {
       outputfile = rootfilename + "_cpt.csv";
       cout << "Writing control points to " << outputfile << endl;
       ofstream cptfile( outputfile.c_str() );
-      cptfile << "id,"
-              << param.xcolname << ","
-              << param.ycolname << ","
-              << param.dxcolname << ","
-              << param.dycolname << ","
-              << "calc" << param.dxcolname << ","
-              << "calc" << param.dycolname << ","
-              << "res" << param.dxcolname << ","
-              << "res" << param.dycolname << ","
-              << "residual,stdres,class,error,used\n";
+      cptfile << "id,";
+      cptfile << param.xcolname << ",";
+      cptfile << param.ycolname << ",";
+      cptfile << param.dxcolname << ",";
+      if( ! heightGrid ) cptfile << param.dycolname << ",";
+      cptfile << "calc" << param.dxcolname << ",";
+      if( ! heightGrid ) cptfile << "calc" << param.dycolname << ",";
+      cptfile << "res" << param.dxcolname << ",";
+      if( ! heightGrid ) cptfile << "res" << param.dycolname << ",";
+      cptfile << "residual,stdres,class,error,used\n";
+
       for( long i = 0; i < points.size(); i++ ) {
          ControlPoint &cpt = * points[i];
-         cptfile << "\"" << cpt.getId() << "\","
-                 << FixedFormat(param.ndpCoord) << cpt.coord()[0] << "," << cpt.coord()[1] << ","
-                 << FixedFormat(param.ndpValue) << cpt.offset()[0] << "," << cpt.offset()[1] << ","
-                 << cpt.calcOffset()[0] << "," << cpt.calcOffset()[1] << ","
-                 << (cpt.offset()[0]-cpt.calcOffset()[0]) << "," << (cpt.offset()[1]-cpt.calcOffset()[1]) << ","
-                 << cpt.distanceResidual() << "," << cpt.stdResidual() << ",\""
-                 << cpt.getClass().getName() << "\","
-                 << cpt.getError() << "," 
-                 << (cpt.isRejected() ? 0 : 1) <<  endl;
+         cptfile << "\"" << cpt.getId() << "\",";
+         cptfile << FixedFormat(param.ndpCoord) << cpt.coord()[0] << "," << cpt.coord()[1] << ",";
+         cptfile << FixedFormat(param.ndpValue);
+         cptfile<< cpt.offset()[0] << ",";
+         if( ! heightGrid ) cptfile << cpt.offset()[1] << ",";
+         cptfile << cpt.calcOffset()[0] << ",";
+         if( ! heightGrid ) cptfile << cpt.calcOffset()[1] << ",";
+         cptfile << (cpt.offset()[0]-cpt.calcOffset()[0]) << ",";
+         if( ! heightGrid ) cptfile << (cpt.offset()[1]-cpt.calcOffset()[1]) << ",";
+         cptfile << cpt.distanceResidual() << "," << cpt.stdResidual() << ",\"";
+         cptfile << cpt.getClass().getName() << "\",";
+         cptfile << cpt.getError() << "," ;
+         cptfile << (cpt.isRejected() ? 0 : 1) <<  endl;
          cpt.getClass().addStdRes( cpt.stdResidual(), cpt.isRejected() ? 0 : 1 );
          }
       }
@@ -366,7 +403,7 @@ int main( int argc, char *argv[] ) {
       }
 
    // Write deformation file... */
-   {
+   if( ! heightGrid ) {
       string outputfile;
       outputfile = rootfilename + "_def.csv";
       ofstream deffile( outputfile.c_str() );

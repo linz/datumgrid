@@ -33,15 +33,17 @@ inline void DoubleRange::expandToInclude( double v ) {
 
 class GridParams {
     public:
+        enum GridBoundaryOption { grdFit, grdZero, grdIgnore };
        double xSpacing;
        double ySpacing;
        double xScale;
        double yScale;
        double maxPointProximity;
-       bool zeroOutsideProximity;
+       GridBoundaryOption boundaryOption;
        double distortionError;
        double shearWeight;
        double scaleWeight;
+       double nonConstantWeight;
        double nonLinearWeight;
        int  pointInfluenceRange;
        int ndpCoord;
@@ -50,6 +52,7 @@ class GridParams {
        string ycolname;
        string dxcolname;
        string dycolname;
+       bool heightGrid;
        bool printGridParams;
        bool fillGrid;
        bool calcStdRes;
@@ -59,10 +62,11 @@ class GridParams {
           xScale(1.0),
           yScale(1.0),
           maxPointProximity(100000.0),
-          zeroOutsideProximity(false),
+          boundaryOption(GridParams::grdFit),
           distortionError(1.0),
           shearWeight(1.0),
           scaleWeight(1.0),
+          nonConstantWeight(1.0),
           nonLinearWeight(1.0),
           pointInfluenceRange(1),
           ndpCoord(0),
@@ -99,7 +103,7 @@ class GridRow {
     ~GridRow();
     void expandRange( long nmin, long nmax );
     void crdRange( DoubleRange &range, int crd );
-    long setParamNo( long paramno, bool inRangeOnly );
+    long setParamNo( long paramno, GridParams::GridBoundaryOption boundaryOption, bool heightGrid );
     void writeSurferRow( ostream &os, long nrow, int crd );
 
     void allocate();
@@ -122,6 +126,7 @@ class Grid {
     void gridCoords( double xy[2], double gxy[2] );
     const double *getSpacing(){ return spacing; }
     const double *getScale(){ return scale; }
+    bool isHeightGrid(){ return heightGrid; }
     char isValidPoint( long c, long r );
     GridPoint & operator() (long c, long r );
     long paramNo( long c, long r );
@@ -133,6 +138,7 @@ class Grid {
     double xy0[2], spacing[2], scale[2];
     long ngrd[2];
     long paramcount;
+    bool heightGrid;
     GridPoint dummy;
     GridRow *rows;
     };

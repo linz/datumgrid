@@ -36,21 +36,25 @@ void GridRow::crdRange( DoubleRange &range, int crd ) {
        }
     }
 
-long GridRow::setParamNo( long paramno, bool inRangeOnly )
+long GridRow::setParamNo( long paramno, GridParams::GridBoundaryOption boundaryOption, bool heightGrid )
 {
     this->paramno = paramno+1;
+    // Param number 0 means node is used with zero value
+    // Param number -1 means node is not used - obs involving node are rejected
+    bool inRangeOnly=boundaryOption != GridParams::grdFit;
+    int boundaryParam=boundaryOption == GridParams::grdZero ? 0 : -1;
     if( data )
     {
         for( int i=0; i <= cmax-cmin; i++ )
         {
             if( inRangeOnly && ! data[i].inrange )
             {
-                data[i].paramno=0;
+                data[i].paramno=boundaryParam;
             }
             else
             {
                 data[i].paramno=paramno+1;
-                paramno += 2;
+                paramno += heightGrid ? 1 : 2;
             }
         }
     }
@@ -80,6 +84,7 @@ Grid::Grid( GridParams &param, ControlPointList &pts ) {
     spacing[1] = param.ySpacing;
     scale[0]=param.xScale;
     scale[1]=param.yScale;
+    heightGrid=param.heightGrid;
 
     // Determine the extents covererd by the control points..
 
@@ -198,7 +203,7 @@ Grid::Grid( GridParams &param, ControlPointList &pts ) {
     paramcount = 0;
     for( long r = 0; r < ngy; r++ ) {
        GridRow &row = rows[r];
-       paramcount=row.setParamNo(paramcount,param.zeroOutsideProximity);
+       paramcount=row.setParamNo(paramcount,param.boundaryOption,heightGrid);
        }
     }
 
@@ -288,13 +293,15 @@ void Grid::writeSurferFile( ostream &os, int crd ) {
 int Grid::writeSurferFiles( string &rootName ) {
     string fileName;
     {
-      fileName = rootName + "_E.grd";
+      if( heightGrid ) fileName = rootName + "_H.grd";
+      else fileName = rootName + "_E.grd";
       ofstream of(fileName.c_str());
       if( of.bad() ) return 0;
       writeSurferFile( of, 0 );
       of.close();
       }
-    {
+
+    if( ! heightGrid ) {
       fileName = rootName + "_N.grd";
       ofstream of(fileName.c_str());
       if( of.bad() ) return 0;

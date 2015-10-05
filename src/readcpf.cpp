@@ -12,7 +12,7 @@ using namespace std;
 
 const int MAXREC = 100;
 
-int readControlPointFile( string filename, ControlPointList &list ){
+int readControlPointFile( string filename, ControlPointList &list, bool heightPoints ){
     ifstream ifs( filename.c_str() );
     if( ! ifs.good() ) {
        cerr << "Cannot open control point file " << filename << endl;
@@ -25,6 +25,7 @@ int readControlPointFile( string filename, ControlPointList &list ){
     double error;
     string ptclass;
     int nrec = 0;
+    dy=0.0;
 
     // Get a record into an input string stream...
     while( getline(ifs,buffer) ){
@@ -36,7 +37,9 @@ int readControlPointFile( string filename, ControlPointList &list ){
        // Skip blank strings and comments
        if( ! record.good() || id[0] == '!' || id[0] == '#' ) continue;
 
-       record >> x >> y >> dx >> dy >> ptclass;
+       record >> x >> y >> dx;
+       if( ! heightPoints ) record >> dy;
+       record  >> ptclass;
        if( ! record.fail() ) {
           ControlPoint *cpt=new ControlPoint( id, x, y, dx, dy, ptclass );
           record >> error;
