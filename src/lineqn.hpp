@@ -1,5 +1,13 @@
 #ifndef LINEQN_HPP
 #define LINEQN_HPP
+/***************************************************************************
+ Copyright 2015 Crown copyright (c)
+ Land Information New Zealand and the New Zealand Government.
+ All rights reserved
+
+ This program is released under the terms of the new BSD license. See 
+ the LICENSE file for more information.
+****************************************************************************/
 
 // ******** WARNING **********
 // In this implementation the linear equations are currently not inverted
