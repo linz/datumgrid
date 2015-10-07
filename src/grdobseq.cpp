@@ -190,11 +190,13 @@ void setupHeightDistortionParam( Grid &grd, GridParams &param ) {
 
 
 int DistortionObseqn( Grid &grd, long c, long r, Obseqn &oe ) {
+   GridPoint *gp[4]={&grd(c,r),&grd(c+1,r),&grd(c,r+1),&grd(c+1,r+1)};
    long prmNo[4];
-   prmNo[0] = grd.paramNo( c, r ); if( prmNo[0] < 0 ) return 0;
-   prmNo[1] = grd.paramNo( c+1, r ); if( prmNo[1] < 0 ) return 0;
-   prmNo[2] = grd.paramNo( c, r+1 ); if( prmNo[2] < 0 ) return 0;
-   prmNo[3] = grd.paramNo( c+1, r+1 ); if( prmNo[3] < 0 ) return 0;
+   for( int i=0; i<4; i++ )
+   {
+       prmNo[i]=gp[i]->paramno; 
+       if(prmNo[i] < 0 ) return 0;
+   }
 #ifdef DEBUG_GRDOBSEQ
    double xy0[2];
    double xy1[2];
@@ -213,7 +215,14 @@ int DistortionObseqn( Grid &grd, long c, long r, Obseqn &oe ) {
    for( int d = 0; d < nDistortionParam; d++ ) {
       double *dp = & distortionParam[d][0];
       for( int nod = 0; nod < 4; nod++ ) {
-         if( prmNo[nod] == 0 ) continue;
+         if( prmNo[nod] == 0 ) 
+         {
+             double *dxy=gp[nod]->dxy;
+             oe.y(d+1) -= (*dp++)*dxy[0];
+             if( ! heightGrid ) oe.y(d+1) -= (*dp)*dxy[1];
+             dp++;
+             continue;
+         }
          valid=1;
          oe.A(d+1,prmNo[nod]) = *dp++;
          if( ! heightGrid ) oe.A(d+1,prmNo[nod]+1) = *dp;

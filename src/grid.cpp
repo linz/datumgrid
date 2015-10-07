@@ -184,16 +184,23 @@ Grid::Grid( GridParams &param, ControlPointList &pts ) {
        if( pts[i]->isRejected() ) continue;
 
        const double *xy = pts[i]->coord();
-       long rmin, rmax, cmin, cmax;
+       long rmin, rmax, cmin, cmax, r0, c0;
+       r0 = (long) floor((xy[1] - y0)/spacing[1]);
        rmin = (long)  ceil( ((xy[1] - y0 - bordery)/spacing[1])-0.001 );
        rmax = (long) floor( ((xy[1] - y0 + bordery)/spacing[1])+0.001 );
+       if( rmin > r0) rmin = r0;
+       if( rmax <= r0 ) rmax=r0+1;
+       c0 = (long) floor((xy[0] - x0)/spacing[0]);
        cmin = (long)  ceil( ((xy[0] - x0 - borderx)/spacing[0])-0.001 );
        cmax = (long) floor( ((xy[0] - x0 + borderx)/spacing[0])+0.001 );
+       if( cmin > c0 ) cmin=c0;
+       if( cmax <= c0 ) cmax=c0+1;
 
        for( ; rmin <= rmax; rmin++ ) 
            for( long c=cmin; c <= cmax; c++ )
            {
                GridPoint &gp=(*this)(c,rmin);
+               if ( (c==c0 || c==c0+1) && (rmin==r0 || rmin==r0+1)) gp.inrange=true;
                if( gp.inrange ) continue;
                double gxy[2];
                convert(c,rmin,gxy);
@@ -205,10 +212,39 @@ Grid::Grid( GridParams &param, ControlPointList &pts ) {
                    gp.inrange=true;
                }
            }
+
        }
 
-    // Now count the parameters in the adjustment.
+    // If height grid then set zero height
+    if( heightGrid )
+    {
+        for( long r=0; r < ngy; r++ ) for( long c=0; c < ngx; c++ )
+        {
+            (*this)(c,r).dxy[0]=param.heightZero;
+        }
+    }
 
+    // If ignoring around boundary then need to ensure
+    // there are no orphaned calculated points around the edge
+    if( param.boundaryOption == GridParams::grdIgnore)
+    {
+        for( long r=0; r < ngy; r++ )
+        {
+            for( long c=0; c < ngx; c++ )
+            {
+                GridPoint &gp=(*this)(c,r);
+                if( gp.inrange )
+                {
+                    if( !((*this)(c-1,r).inrange || (*this)(c+1,r).inrange)) 
+                        gp.inrange=false;
+                    if( !((*this)(c,r-1).inrange || (*this)(c,r+1).inrange)) 
+                        gp.inrange=false;
+                }
+            }
+        }
+    }
+
+    // Now count the parameters in the adjustment.
     paramcount = 0;
     for( long r = 0; r < ngy; r++ ) {
        GridRow &row = rows[r];

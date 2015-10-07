@@ -16,6 +16,8 @@ LIBFILES= \
 LIBO=$(LIBFILES:.cpp=.o)
 
 CPPFLAGS=-g
+#CPPFLAGS=-g -DDEBUG_GRDOBSEQ
+
 
 all: ../datumgrid ../griddef ../datumgrid.help
 

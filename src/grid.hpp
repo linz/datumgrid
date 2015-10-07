@@ -48,6 +48,7 @@ class GridParams {
        double yScale;
        double maxPointProximity;
        GridBoundaryOption boundaryOption;
+       double heightZero;
        double distortionError;
        double shearWeight;
        double scaleWeight;
@@ -71,6 +72,7 @@ class GridParams {
           yScale(1.0),
           maxPointProximity(100000.0),
           boundaryOption(GridParams::grdFit),
+          heightZero(0.0),
           distortionError(1.0),
           shearWeight(1.0),
           scaleWeight(1.0),

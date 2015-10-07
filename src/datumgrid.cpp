@@ -39,6 +39,17 @@ int readPositiveNumber( istream &is, double &val, string &errmess, bool optional
       }
    }
 
+int readNumber( istream &is, double &val, string &errmess, bool optional=false ) {
+   is >> val;
+   if( is.fail() ) {
+      if( ! optional ) errmess = "Missing value";
+      return 0;
+      }
+   else {
+      return 1;
+      }
+   }
+
 int readErrorOrReject( istream &is, double &val, char &reject, string &errmess ) {
    string option;
    is >> option;
@@ -156,6 +167,9 @@ int readCommandFile( char *filename, GridParams &param, ControlPointList &pts ) 
            {
                error = "beyond_proximity option must be one of \"fit\", \"zero\", or \"ignore\"";
            }
+           }
+       else if ( command == "height_zero_value" ) {
+           readNumber( record, param.heightZero, error );
            }
        else if ( command == "distortion_error" ) {
            readPositiveNumber( record, param.distortionError, error );
@@ -329,7 +343,7 @@ int main( int argc, char *argv[] ) {
               << param.ycolname << ","
               << param.dxcolname;
       if( ! heightGrid )  grdfile << "," << param.dycolname;
-      if( param.printGridParams ) grdfile << ",mode,paramno";
+      if( param.printGridParams ) grdfile << ",c,r,mode,paramno";
       grdfile << "\n";
       double zeroOffset[2]={0,0};
       for( long r = 0; r < grid.nrows(); r++ ) for (long c = 0; c < grid.ncols(); c++ ) {
@@ -349,7 +363,7 @@ int main( int argc, char *argv[] ) {
          grdfile << FixedFormat(param.ndpCoord) << xy[0] << "," << xy[1] << ","
                     << FixedFormat(param.ndpValue) << offset[0];
          if( ! heightGrid ) grdfile << "," << offset[1];
-         if( param.printGridParams ) grdfile << "," << mode << "," << paramno;
+         if( param.printGridParams ) grdfile << "," << c << "," << r << "," << mode << "," << paramno;
          grdfile << endl;
          }
       logfile << "Grid written to " << outputfile << endl;

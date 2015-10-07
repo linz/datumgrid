@@ -80,6 +80,12 @@ grid_spacing #.### [#.###]
 required_point_proximity #.####
 beyond_proximity [fit|zero|ignore]
 
+# For height grids can set a height zero value used for the
+# beyond proximity zero option, which will set cells outside
+# the range to this value rather than zero
+
+height_zero_value #.###
+
 # The two main factors affecting the fit are the expected 
 # errors of the dx/dy or dh control point data and the
 # expected distortion error in each grid cell.  Making the 
