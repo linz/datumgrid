@@ -11,6 +11,7 @@
 #include <fstream>
 #include <sstream>
 #include <cstring>
+#include <cmath>
 #include <iomanip>
 
 using namespace std;
@@ -262,6 +263,14 @@ int readCommandFile( char *filename, GridParams &param, ControlPointList &pts ) 
                error="Missing column names";
            }
            }
+       else if ( command == "uncertainty_columns" ) {
+           record >> param.xerrname;
+           if( ! param.heightGrid ) record >> param.yerrname >> param.xycorrname;
+           if( record.fail() )
+           {
+               error="Missing column names";
+           }
+           }
 
        else if( command == "print_grid_params" )
        {
@@ -270,6 +279,10 @@ int readCommandFile( char *filename, GridParams &param, ControlPointList &pts ) 
        else if( command == "fill_grid" )
        {
            readBool(record,param.fillGrid,error);
+       }
+       else if( command == "calculate_grid_uncertainty" )
+       {
+           readBool(record,param.calcGridCovar,error);
        }
        else if( command == "calculate_control_point_stdres" )
        {
@@ -340,21 +353,41 @@ int main( int argc, char *argv[] ) {
       cout << "Writing grid to " << outputfile << endl;
       // grdfile << "x,y,dx,dy,calc,paramno\n";
       grdfile << param.xcolname << ","
-              << param.ycolname << ","
-              << param.dxcolname;
-      if( ! heightGrid )  grdfile << "," << param.dycolname;
+              << param.ycolname;
+     
+      if( heightGrid ) 
+      {
+          grdfile << "," << param.dxcolname;
+          if( param.calcGridCovar )
+          {
+              grdfile << "," << param.xerrname;
+          }
+      }
+      else
+      {
+          grdfile << "," << param.dxcolname << "," << param.dycolname;
+          if( param.calcGridCovar )
+          {
+              grdfile << "," << param.xerrname
+                      << "," << param.yerrname
+                      << "," << param.xycorrname;
+          }
+      }
       if( param.printGridParams ) grdfile << ",c,r,mode,paramno";
       grdfile << "\n";
       double zeroOffset[2]={0,0};
       for( long r = 0; r < grid.nrows(); r++ ) for (long c = 0; c < grid.ncols(); c++ ) {
          double xy[2];
+         double *covar;
          grid.convert( c,r, xy );
          double *offset=zeroOffset;
          int paramno=0;
          string mode="fill";
          if( grid.isValidPoint(c,r) ) {
-            offset = grid(c,r).dxy;
-            paramno=grid(c,r).paramno;
+            GridPoint &gp=grid(c,r);
+            offset = gp.dxy;
+            covar = gp.cvr;
+            paramno=gp.paramno;
             if(paramno < 0 ) mode="ignore"; 
             else if(paramno <= 0 ) mode="zero"; 
             else mode="calc";
@@ -363,6 +396,16 @@ int main( int argc, char *argv[] ) {
          grdfile << FixedFormat(param.ndpCoord) << xy[0] << "," << xy[1] << ","
                     << FixedFormat(param.ndpValue) << offset[0];
          if( ! heightGrid ) grdfile << "," << offset[1];
+         if( param.calcGridCovar )
+         {
+             grdfile << "," << sqrt(covar[0]);
+             if( ! heightGrid )
+             {
+                 double xycorr = sqrt(covar[0]*covar[2]);
+                 if( xycorr > 0.0 ) xycorr=covar[1]/xycorr;
+                 grdfile << "," << sqrt(covar[2]) << "," << xycorr;
+             }
+         }
          if( param.printGridParams ) grdfile << "," << c << "," << r << "," << mode << "," << paramno;
          grdfile << endl;
          }

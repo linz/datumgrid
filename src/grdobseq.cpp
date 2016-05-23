@@ -384,7 +384,6 @@ void ControlPointObseqn( Grid &grd, ControlPoint &cp, GridInterpolator &gi,
 #endif
     }
 
-
 void HeightControlPointObseqn( Grid &grd, ControlPoint &cp, GridInterpolator &gi,
     Obseqn &oe ) {
     oe.Zero( 1, 0, 0 );
@@ -556,17 +555,41 @@ int CalculateGridModel( Grid &grd, ControlPointList &pts,
 
     // Copy the solution to the grid
 
+    {
+    bool calcCvr = param.calcGridCovar;
+    Obseqn oe(2);
+    int ngprm=heightGrid ? 1 : 2;
+    leVector dxy(ngprm);
+    SymMatrix cvr(ngprm);
+    SymMatrix *ptrcvr = calcCvr ? &cvr : 0;
+
     pm.Start("Applying the solution to the grid",grd.nrows() );
     for( long r = 0; r < grd.nrows(); r++ ) {
         pm.Update(r);
         for( long c = 0; c < grd.ncols(); c++ ) {
             long prmNo = grd.paramNo( c, r );
             if( prmNo <= 0 ) continue;
-            grd(c,r).dxy[0] = le.Param(prmNo);
-            if( ! heightGrid) grd(c,r).dxy[1] = le.Param(prmNo+1);
+            oe.Zero( ngprm, 0, 0 );
+            oe.A(1, prmNo ) = 1.0;
+            if( ! heightGrid ) oe.A(2, prmNo+1 ) = 1.0;
+            if( ! oe.CalcValue( le, &dxy, ptrcvr ) )
+            {
+            }
+            grd(c,r).dxy[0] = dxy(1);
+            if( ! heightGrid ) grd(c,r).dxy[1] = dxy(2);
+            if( calcCvr )
+            {
+                grd(c,r).cvr[0] = cvr(1,1);
+                if( ! heightGrid )
+                {
+                    grd(c,r).cvr[1] = cvr(1,2);
+                    grd(c,r).cvr[2] = cvr(2,2);
+                }
+            }
             }
         }
     pm.Finish();
+    }
 
     // Invert the covariance matrix
 

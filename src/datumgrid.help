@@ -129,7 +129,11 @@ class cc [error #.###] [reject]
 
 # Specify the column names for the output grid x, y, dx, dy 
 # columns (x, y, dh for height grids)
+# Uncertainty columns are std err of dx, std err of dy,
+# and correlation of dx,dy, or just std err of dh for height grids
+
 columns xcol ycol dxcol dycol
+uncertainty_columns xerr yerr xycorr
 
 # Number of decimal places used for x, y coordinates
 coordinate_precision #
@@ -145,7 +149,13 @@ print_grid_params [true|false] (parameter numbers)
 fill_grid [true|false]
 
 # If true then the control point output listing includes 
+# includes standard errors of calculated components
+
+# calculate_grid_uncertainty [true|false]
+
+# If true then the control point output listing includes 
 # standardised residuals (more useful, but time consuming to
 # calculate for large grids)
-calc_standardised_residuals [true|false]
+
+# calc_control_point_stdres [true|false]
 

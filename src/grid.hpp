@@ -61,9 +61,13 @@ class GridParams {
        string ycolname;
        string dxcolname;
        string dycolname;
+       string xerrname;
+       string yerrname;
+       string xycorrname;
        bool heightGrid;
        bool printGridParams;
        bool fillGrid;
+       bool calcGridCovar;
        bool calcStdRes;
        GridParams() :
           xSpacing(50000.0),
@@ -85,8 +89,12 @@ class GridParams {
           ycolname("y"),
           dxcolname("dx"),
           dycolname("dy"),
+          xerrname("xstd"),
+          yerrname("ystd"),
+          xycorrname("xycorr"),
           printGridParams(false),
           fillGrid(false),
+          calcGridCovar(false),
           calcStdRes(true)
           {}
     };
@@ -97,6 +105,7 @@ class Grid;
 struct GridPoint {
   GridPoint(){ dxy[0]=dxy[1]=0.0; sr=0.0; inrange=false; paramno=-1;}
   double dxy[2];
+  double cvr[3];
   double sr;  // Standardised residual of distortion of the adjacent cell
   long  paramno;
   bool inrange;
