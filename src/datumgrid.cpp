@@ -128,6 +128,7 @@ int readCommandFile( char *filename, GridParams &param, ControlPointList &pts ) 
            }
            readBool(record,param.heightGrid,error);
            if( param.heightGrid ) param.dxcolname="dh";
+           if( param.heightGrid ) param.xerrname="stdh";
            }
        else if ( command == "grid_spacing" ) {
            readPositiveNumber( record, param.xSpacing, error );
