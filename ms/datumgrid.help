@@ -30,7 +30,7 @@ Data file:
     	id east north dheight [class [error]]
     
     (the second format is for height grids). 
-    The east and north coordinates can be in any units (eg lat/lon
+    The east and north coordinates can be in any units (eg lon/lat
     degrees or easting/northing metres).  Whichever is used the final
     grid will be in the same units.
     The offset at each point (deast/dnorth or dheight) are in metres
@@ -72,7 +72,7 @@ data_file  filename
 
 # Convert control point/grid coordinate units to metres 
 # for proximity and calculating distortion.  
-# For lat/lon grids will typically be something like
+# For lon/lat grids will typically be something like
 # 70000.0 100000.0.  For metre grids default 1 1 is correct.
 
 coordinate_to_metres #.### [#.###]
@@ -129,7 +129,11 @@ class cc [error #.###] [reject]
 
 # Specify the column names for the output grid x, y, dx, dy 
 # columns (x, y, dh for height grids)
+# Uncertainty columns are std err of dx, std err of dy,
+# and correlation of dx,dy, or just std err of dh for height grids
+
 columns xcol ycol dxcol dycol
+uncertainty_columns xerr yerr xycorr
 
 # Number of decimal places used for x, y coordinates
 coordinate_precision #
@@ -142,10 +146,16 @@ print_grid_params [true|false] (parameter numbers)
 
 # If true then the full grid is output, otherwise only the points
 # within the specified proximity are output
-fill_grd [true|false]
+fill_grid [true|false]
+
+# If true then the control point output listing includes 
+# includes standard errors of calculated components
+
+# calculate_grid_uncertainty [true|false]
 
 # If true then the control point output listing includes 
 # standardised residuals (more useful, but time consuming to
 # calculate for large grids)
-calc_standardised_residuals [true|false]
+
+# calc_control_point_stdres [true|false]
 
