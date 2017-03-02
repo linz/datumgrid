@@ -101,15 +101,6 @@ Grid::Grid( GridParams &param, ControlPointList &pts ) {
     // Work out the number of grid cells required either side of each control
     // point.
 
-    int ptInf = param.pointInfluenceRange+1;
-    double borderx=param.maxPointProximity/(scale[0]*spacing[0]);
-    if( borderx < ptInf ) borderx=ptInf;
-    borderx *= spacing[0];
-
-    double bordery=param.maxPointProximity/(scale[1]*spacing[1]);
-    if( bordery < ptInf ) bordery=ptInf;
-        bordery *= spacing[1];
-
     double x0, y0;
     long ngx, ngy;
     int i;
@@ -125,8 +116,22 @@ Grid::Grid( GridParams &param, ControlPointList &pts ) {
         ngx++;
         ngy++;
     }
-
     else
+    {
+        spacing[0] = param.xSpacing;
+        spacing[1] = param.ySpacing;
+    }
+
+    int ptInf = param.pointInfluenceRange+1;
+    double borderx=param.maxPointProximity/(scale[0]*spacing[0]);
+    if( borderx < ptInf ) borderx=ptInf;
+    borderx *= spacing[0];
+
+    double bordery=param.maxPointProximity/(scale[1]*spacing[1]);
+    if( bordery < ptInf ) bordery=ptInf;
+    bordery *= spacing[1];
+
+    if( ! param.fixedGrid )
     {
 
         // Determine the extents covererd by the control points..
@@ -152,8 +157,6 @@ Grid::Grid( GridParams &param, ControlPointList &pts ) {
         ymin -= bordery; ymax += bordery;
 
 
-        spacing[0] = param.xSpacing;
-        spacing[1] = param.ySpacing;
         x0 = spacing[0] * floor(xmin/spacing[0]);
         y0 = spacing[1] * floor(ymin/spacing[1]);
 

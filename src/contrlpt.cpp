@@ -132,7 +132,7 @@ ControlPoint *ControlPointList::operator [] ( const string &id ) {
 bool ControlPointList::isUsed()
 {
     for( int i = 0; i < size(); i++ ) {
-        if( ! itemAt(i)->isUsed() ) return true;
+        if( itemAt(i)->isUsed() ) return true;
     }
     return false;
 }
