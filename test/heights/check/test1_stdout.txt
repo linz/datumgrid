@@ -1,0 +1,17 @@
+Grid specification
+Grid definition
+Size: 7 rows by 7 cols
+Top left point -200, -200
+Spacing 100, 100
+Parameters 49
+Setting up the linear equations
+Adding control points
+--------------------------------------------------*************************************                                                  Summed 4 control points
+Applying distortion constraints
+--------------------------------------------------*****************************************                                                  Summed 36 distortion constraints
+Solving the linear equations
+Forming Choleski decomposition
+--------------------------------------------------**************************************************                                                  Applying the solution to the grid
+--------------------------------------------------******************************************                                                  Calculating control point residuals
+--------------------------------------------------*************************************                                                  Writing grid to out/test1_grd.csv
+Writing control points to out/test1_cpt.csv
