@@ -74,11 +74,31 @@ data_file  filename
 # for proximity and calculating distortion.  
 # For lon/lat grids will typically be something like
 # 70000.0 100000.0.  For metre grids default 1 1 is correct.
-
+# 
 coordinate_to_metres #.### [#.###]
+
+# Grid can either be defined explicitly by east and north min and
+# max values, and number of east and north grid cells (number of 
+# east and north values -1), or by specifying the grid spacing,
+# in which case the grid is calculated by expanding around the 
+# control points.
+
+grid_definition emin nmin emax nmax ngride ngridn
+
 grid_spacing #.### [#.###]
 required_point_proximity #.####
 beyond_proximity [fit|zero|ignore]
+
+# Control points which are located at grid nodes can be used to
+# constrain the dx/dy values at the node, rather than as observation
+# equations.  Control points are identified as on nodes if within
+# the node_point_tolerance metres of the nearest node.
+# If node_points_only is true than points that are not nodes are 
+# ignored.
+
+fix_node_points ( true | false )
+node_points_only ( true | false )
+node_point_tolerance #.###
 
 # For height grids can set a height zero value used for the
 # beyond proximity zero option, which will set cells outside

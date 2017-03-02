@@ -423,6 +423,7 @@ long sumControlPoints( Grid &grd, ControlPointList &pts, GridInterpolator &gi,
 #endif
        ControlPoint &cp = *pts[i];
        if( cp.isRejected() ) continue;
+       if( cp.isNode() ) continue;
        if( heightGrid ) HeightControlPointObseqn( grd, cp, gi, oe );
        else ControlPointObseqn( grd, cp, gi, oe );
 #ifdef DEBUG_GRDOBSEQ
@@ -502,6 +503,7 @@ void calcControlPointListResiduals( Grid &grd, ControlPointList &pts, GridInterp
     for( int i = 0; i < pts.size(); i++ ) {
        pm.Update(i);
        ControlPoint &cp = *pts[i];
+       if( cp.isNode() ) continue;
        if( heightGrid ) calcHeightControlPointResidual( grd, cp, gi, le, calcStdRes );
        else calcControlPointResidual( grd, cp, gi, le, calcStdRes );
        }

@@ -25,6 +25,21 @@ using namespace std;
 
 const int MAXREC = 256;
 
+int readPositiveInt( istream &is, int &val, string &errmess, bool optional=false, bool zeroOk=false ) {
+   is >> val;
+   if( is.fail() ) {
+      if( ! optional ) errmess = "Missing value";
+      return 0;
+      }
+   else if ( val < 0.0 || (val == 0.0 && ! zeroOk) ) {
+      errmess = "Value must be positive";
+      return 0;
+      }
+   else {
+      return 1;
+      }
+   }
+
 int readPositiveNumber( istream &is, double &val, string &errmess, bool optional=false, bool zeroOk=false ) {
    is >> val;
    if( is.fail() ) {
@@ -130,6 +145,19 @@ int readCommandFile( char *filename, GridParams &param, ControlPointList &pts ) 
            if( param.heightGrid ) param.dxcolname="dh";
            if( param.heightGrid ) param.xerrname="stdh";
            }
+       else if ( command == "grid_definition" ) {
+           readNumber( record, param.xmin, error );
+           readNumber( record, param.ymin, error );
+           readNumber( record, param.xmax, error );
+           readNumber( record, param.ymax, error );
+           readPositiveInt( record, param.ngridx, error );
+           readPositiveInt( record, param.ngridy, error );
+           param.fixedGrid=true;
+           if( param.xmin >= param.xmax || param.ymin >= param.ymax )
+           {
+               error="Grid parameters are outside valid range";
+           }
+           }
        else if ( command == "grid_spacing" ) {
            readPositiveNumber( record, param.xSpacing, error );
            if( ! readPositiveNumber( record, param.ySpacing, error, true ))
@@ -234,6 +262,16 @@ int readCommandFile( char *filename, GridParams &param, ControlPointList &pts ) 
                 }
            }
 
+       else if ( command == "fix_node_points" ) {
+           readBool(record,param.fixControlNodes,error);
+           }
+       else if ( command == "node_points_only" ) {
+           readBool(record,param.controlNodesOnly,error);
+           }
+       else if ( command == "node_point_tolerance" ) {
+           readPositiveNumber( record, param.controlNodeTolerance, error );
+           }
+
        else if ( command == "class" ) {
            string clsName;
            record >> clsName;
@@ -298,6 +336,7 @@ int readCommandFile( char *filename, GridParams &param, ControlPointList &pts ) 
            ok = 0;
            }
        }
+   if( param.controlNodesOnly ) param.fixControlNodes=true;
    return ok;
    }
 
@@ -415,61 +454,78 @@ int main( int argc, char *argv[] ) {
 
    if( ! success ) return 0;
 
+   if( param.controlNodesOnly )
+   {
+       long nunused=0;
+       for( long i = 0; i < points.size(); i++ ) {
+          ControlPoint &cpt = * points[i];
+          if( ! cpt.isNode() ) nunused++;
+          }
+       if( nunused )
+       {
+           logfile << nunused << " node constraint were unused - not on grid" << endl;
+       }
+   }
+   else if( ! points.isUsed() )
+   {
+       logfile << "No control points used (other than as node constraints)" << endl;
+   }
+   else
    // Write control point file.  Also sum standardised residuals for classes
    {
       for( int i = 0; i < ControlPointClass::count(); i++ ) {
          ControlPointClass::classNumber(i)->clearSumStdRes();
          }
-      }
-   {
-      string outputfile;
-      outputfile = rootfilename + "_cpt.csv";
-      cout << "Writing control points to " << outputfile << endl;
-      ofstream cptfile( outputfile.c_str() );
-      cptfile << "id,";
-      cptfile << param.xcolname << ",";
-      cptfile << param.ycolname << ",";
-      cptfile << param.dxcolname << ",";
-      if( ! heightGrid ) cptfile << param.dycolname << ",";
-      cptfile << "calc" << param.dxcolname << ",";
-      if( ! heightGrid ) cptfile << "calc" << param.dycolname << ",";
-      cptfile << "res" << param.dxcolname << ",";
-      if( ! heightGrid ) cptfile << "res" << param.dycolname << "," << "residual,";
-      cptfile << "stdres,class,error,used\n";
+       {
+          string outputfile;
+          outputfile = rootfilename + "_cpt.csv";
+          cout << "Writing control points to " << outputfile << endl;
+          ofstream cptfile( outputfile.c_str() );
+          cptfile << "id,";
+          cptfile << param.xcolname << ",";
+          cptfile << param.ycolname << ",";
+          cptfile << param.dxcolname << ",";
+          if( ! heightGrid ) cptfile << param.dycolname << ",";
+          cptfile << "calc" << param.dxcolname << ",";
+          if( ! heightGrid ) cptfile << "calc" << param.dycolname << ",";
+          cptfile << "res" << param.dxcolname << ",";
+          if( ! heightGrid ) cptfile << "res" << param.dycolname << "," << "residual,";
+          cptfile << "stdres,class,error,used\n";
 
-      for( long i = 0; i < points.size(); i++ ) {
-         ControlPoint &cpt = * points[i];
-         cptfile << "\"" << cpt.getId() << "\",";
-         cptfile << FixedFormat(param.ndpCoord) << cpt.coord()[0] << "," << cpt.coord()[1] << ",";
-         cptfile << FixedFormat(param.ndpValue);
-         cptfile<< cpt.offset()[0] << ",";
-         if( ! heightGrid ) cptfile << cpt.offset()[1] << ",";
-         cptfile << cpt.calcOffset()[0] << ",";
-         if( ! heightGrid ) cptfile << cpt.calcOffset()[1] << ",";
-         cptfile << (cpt.offset()[0]-cpt.calcOffset()[0]) << ",";
-         if( ! heightGrid ) cptfile << (cpt.offset()[1]-cpt.calcOffset()[1]) << "," << cpt.distanceResidual() << ",";
-         cptfile << cpt.stdResidual() << ",\"";
-         cptfile << cpt.getClass().getName() << "\",";
-         cptfile << cpt.getError() << "," ;
-         cptfile << (cpt.isRejected() ? 0 : 1) <<  endl;
-         cpt.getClass().addStdRes( cpt.stdResidual(), cpt.isRejected() ? 0 : 1 );
-         }
-      }
+          for( long i = 0; i < points.size(); i++ ) {
+             ControlPoint &cpt = * points[i];
+             cptfile << "\"" << cpt.getId() << "\",";
+             cptfile << FixedFormat(param.ndpCoord) << cpt.coord()[0] << "," << cpt.coord()[1] << ",";
+             cptfile << FixedFormat(param.ndpValue);
+             cptfile<< cpt.offset()[0] << ",";
+             if( ! heightGrid ) cptfile << cpt.offset()[1] << ",";
+             cptfile << cpt.calcOffset()[0] << ",";
+             if( ! heightGrid ) cptfile << cpt.calcOffset()[1] << ",";
+             cptfile << (cpt.offset()[0]-cpt.calcOffset()[0]) << ",";
+             if( ! heightGrid ) cptfile << (cpt.offset()[1]-cpt.calcOffset()[1]) << "," << cpt.distanceResidual() << ",";
+             cptfile << cpt.stdResidual() << ",\"";
+             cptfile << cpt.getClass().getName() << "\",";
+             cptfile << cpt.getError() << "," ;
+             cptfile << (cpt.isRejected() ? 0 : 1) <<  endl;
+             cpt.getClass().addStdRes( cpt.stdResidual(), cpt.isRejected() ? 0 : 1 );
+             }
+          }
 
-   if( 0 ){
-      logfile << "Summary of residuals by class\n";
-      for( int i = 0; i < ControlPointClass::count(); i++ ) {
-         ControlPointClass &cpc = *ControlPointClass::classNumber(i);
-         logfile << setw(10)
-                 << cpc.getName() << "    used  "
-                 << setw(5) << cpc.stdResCount(1) << "  "
-                 << FixedFormat(7,2) << cpc.RMS_StdRes(1)
-                 << "     unused  "
-                 << setw(5) << cpc.stdResCount(0) << "  "
-                 << FixedFormat(7,2) << cpc.RMS_StdRes(0)
-                 << "\n";
-         }
-      }
+       if( 0 ){
+          logfile << "Summary of residuals by class\n";
+          for( int i = 0; i < ControlPointClass::count(); i++ ) {
+             ControlPointClass &cpc = *ControlPointClass::classNumber(i);
+             logfile << setw(10)
+                     << cpc.getName() << "    used  "
+                     << setw(5) << cpc.stdResCount(1) << "  "
+                     << FixedFormat(7,2) << cpc.RMS_StdRes(1)
+                     << "     unused  "
+                     << setw(5) << cpc.stdResCount(0) << "  "
+                     << FixedFormat(7,2) << cpc.RMS_StdRes(0)
+                     << "\n";
+             }
+          }
+   }
 
    // Write deformation file... */
    if( ! heightGrid ) {

@@ -56,7 +56,11 @@ long GridRow::setParamNo( long paramno, GridParams::GridBoundaryOption boundaryO
     {
         for( int i=0; i <= cmax-cmin; i++ )
         {
-            if( inRangeOnly && ! data[i].inrange )
+            if( data[i].fixed )
+            {
+                data[i].paramno=0;
+            }
+            else if( inRangeOnly && ! data[i].inrange )
             {
                 data[i].paramno=boundaryParam;
             }
@@ -89,56 +93,73 @@ void GridRow::writeSurferRow( ostream &os, long nrow, int crd ) {
 Grid::Grid( GridParams &param, ControlPointList &pts ) {
     rows = 0;
 
-    spacing[0] = param.xSpacing;
-    spacing[1] = param.ySpacing;
     scale[0]=param.xScale;
     scale[1]=param.yScale;
     heightGrid=param.heightGrid;
 
-    // Determine the extents covererd by the control points..
-
-    double xmin, ymin, xmax, ymax;
-    int i;
-
-    for( i = 0; i < pts.size(); i++ ) {
-       const double *xy = pts[i]->coord();
-       if( i == 0 ) {
-          xmin = xmax = xy[0];
-          ymin = ymax = xy[1];
-          }
-       else {
-          if( xy[0] < xmin ) xmin = xy[0]; else if( xy[0] > xmax ) xmax = xy[0];
-          if( xy[1] < ymin ) ymin = xy[1]; else if( xy[1] > ymax ) ymax = xy[1];
-          }
-       }
 
     // Work out the number of grid cells required either side of each control
     // point.
 
     int ptInf = param.pointInfluenceRange+1;
-
-    // Work out the grid location and extents...  Grid points are organised in
-    // the same way as words on a page.
-
     double borderx=param.maxPointProximity/(scale[0]*spacing[0]);
     if( borderx < ptInf ) borderx=ptInf;
     borderx *= spacing[0];
 
     double bordery=param.maxPointProximity/(scale[1]*spacing[1]);
     if( bordery < ptInf ) bordery=ptInf;
-    bordery *= spacing[1];
-
-    xmin -= borderx; xmax += borderx;
-    ymin -= bordery; ymax += bordery;
+        bordery *= spacing[1];
 
     double x0, y0;
     long ngx, ngy;
+    int i;
 
-    x0 = spacing[0] * floor(xmin/spacing[0]);
-    y0 = spacing[1] * floor(ymin/spacing[1]);
+    if( param.fixedGrid )
+    {
+        x0=param.xmin;
+        y0=param.ymin;
+        ngx=param.ngridx;
+        ngy=param.ngridy;
+        spacing[0]=(param.xmax-x0)/ngx;
+        spacing[1]=(param.ymax-y0)/ngy;
+        ngx++;
+        ngy++;
+    }
 
-    ngx = (long) ceil( (xmax - x0)/spacing[0]) + 1;
-    ngy = (long) ceil( (ymax - y0)/spacing[1]) + 1;
+    else
+    {
+
+        // Determine the extents covererd by the control points..
+
+        double xmin, ymin, xmax, ymax;
+
+        for( i = 0; i < pts.size(); i++ ) {
+           const double *xy = pts[i]->coord();
+           if( i == 0 ) {
+              xmin = xmax = xy[0];
+              ymin = ymax = xy[1];
+              }
+           else {
+              if( xy[0] < xmin ) xmin = xy[0]; else if( xy[0] > xmax ) xmax = xy[0];
+              if( xy[1] < ymin ) ymin = xy[1]; else if( xy[1] > ymax ) ymax = xy[1];
+              }
+           }
+
+        // Work out the grid location and extents...  Grid points are organised in
+        // the same way as words on a page.
+        //
+        xmin -= borderx; xmax += borderx;
+        ymin -= bordery; ymax += bordery;
+
+
+        spacing[0] = param.xSpacing;
+        spacing[1] = param.ySpacing;
+        x0 = spacing[0] * floor(xmin/spacing[0]);
+        y0 = spacing[1] * floor(ymin/spacing[1]);
+
+        ngx = (long) ceil( (xmax - x0)/spacing[0]) + 1;
+        ngy = (long) ceil( (ymax - y0)/spacing[1]) + 1;
+    }
 
     // Allocate the grid rows..
 
@@ -177,13 +198,48 @@ Grid::Grid( GridParams &param, ControlPointList &pts ) {
        row.allocate();
        }
 
+    // Fix control point nodes...
+
+    if( param.fixControlNodes )
+    {
+        for( i = 0; i < pts.size(); i++ ) {
+           if( param.controlNodesOnly ) pts[0]->setUnused();
+           if( pts[i]->isRejected() ) continue;
+           double *pxy=pts[i]->coord();
+           long cr[2];
+           double xy[2];
+           convert(pts[i]->coord(),cr);
+           convert(cr,xy);
+           double offset=hypot(
+                   (pxy[0]-xy[0])*spacing[0],
+                   (pxy[1]-xy[1])*spacing[1]);
+           if( offset > param.controlNodeTolerance ) continue;
+           if( ! isValidPoint( cr )) continue;
+           GridPoint &gp=(*this)(cr[0],cr[1]);
+           gp.fixed=true;
+           double *dxy=pts[i]->offset();
+           gp.dxy[0]=dxy[0];
+           gp.dxy[1]=dxy[1];
+           pts[i]->setIsNode();
+           pts[i]->setUnused();
+        }
+    }
+
     // Define which points are within range of a control point
 
     double p2=param.maxPointProximity*param.maxPointProximity;
     for( i = 0; i < pts.size(); i++ ) {
-       if( pts[i]->isRejected() ) continue;
+       if( pts[i]->isUnused() ) continue;
 
        const double *xy = pts[i]->coord();
+       long cr[2];
+       convert(xy,cr);
+       if( ! isValidPoint(cr) )
+       {
+           pts[0]->setUnused();
+           continue;
+       }
+       if( pts[i]->isRejected() ) continue;
        long rmin, rmax, cmin, cmax, r0, c0;
        r0 = (long) floor((xy[1] - y0)/spacing[1]);
        rmin = (long)  ceil( ((xy[1] - y0 - bordery)/spacing[1])-0.001 );
@@ -258,13 +314,13 @@ Grid::~Grid() {
     }
 
 
-void Grid::convert( double xy[2], long cr[2] ) {
+void Grid::convert( const double xy[2], long cr[2] ) {
     cr[0] = (long) floor((xy[0] - xy0[0])/spacing[0]);
     cr[1] = (long) floor((xy[1] - xy0[1])/spacing[1]);
     }
 
 
-void Grid::convert( long c, long r, double xy[2] ){
+void Grid::convert( const long c, const long r, double xy[2] ){
     xy[0] = xy0[0] + c * spacing[0];
     xy[1] = xy0[1] + r * spacing[1];
     }
