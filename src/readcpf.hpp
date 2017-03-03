@@ -11,6 +11,6 @@
 ****************************************************************************/
 #include "contrlpt.hpp"
 
-int readControlPointFile( string filename, ControlPointList &list, bool heightPoints=false );
+int readControlPointFile( string filename, ControlPointList &list, bool heightPoints=false, bool ids=false );
 
 #endif

@@ -85,14 +85,31 @@ int readErrorOrReject( istream &is, double &val, char &reject, string &errmess )
       }
    }
 
-int readBool( istream &is, bool &val, string &errmess ) {
+int readBool( istream &is, bool &val, string &errmess, bool optional=false ) {
    string option;
    is >> option;
    // string::set_case_sensitive( 0 );
-   bool result=true;
-   if( option == "false" || option == "no" ) result=false;
-   val=result;
-   return 1;
+   int result= 0;
+   if( option == "false" || option == "no" ) {
+       val=false;
+       return 1;
+   }
+   else if ( option == "true" || option == "yes" ) 
+   {
+       val=true;
+       return 1;
+   }
+   else if ( is.fail() || option == "" )
+   {
+       if( optional ) return 1;
+       errmess="Boolean value missing";
+   }
+   else
+   {
+       errmess="Invalid boolean value";
+       errmess += option;
+   }
+   return 0;
 }
 
 
@@ -130,12 +147,11 @@ int readCommandFile( char *filename, GridParams &param, ControlPointList &pts ) 
               error = "Data file name missing";
               }
            else {
-              if( ! readControlPointFile( df, pts, param.heightGrid ) ) {
+              if( ! readControlPointFile( df, pts, param.heightGrid, param.pointsHaveIds ) ) {
                  error = "No control points in control point file\n";
                  }
               }
            }
-
        else if ( command == "height_grid" ) {
            if( pts.size() > 0 )
            {
@@ -144,6 +160,9 @@ int readCommandFile( char *filename, GridParams &param, ControlPointList &pts ) 
            readBool(record,param.heightGrid,error);
            if( param.heightGrid ) param.dxcolname="dh";
            if( param.heightGrid ) param.xerrname="stdh";
+           }
+       else if ( command == "points_have_ids" ) {
+           readBool(record,param.pointsHaveIds,error);
            }
        else if ( command == "grid_definition" ) {
            readNumber( record, param.xmin, error );
@@ -428,7 +447,8 @@ int main( int argc, char *argv[] ) {
             offset = gp.dxy;
             covar = gp.cvr;
             paramno=gp.paramno;
-            if(paramno < 0 ) mode="ignore"; 
+            if( gp.fixed ) mode="fixed";
+            else if(paramno < 0 ) mode="ignore"; 
             else if(paramno <= 0 ) mode="zero"; 
             else mode="calc";
             }

@@ -79,6 +79,7 @@ class GridParams {
        bool fixedGrid;
        bool fixControlNodes;
        bool controlNodesOnly;
+       bool pointsHaveIds;
        GridParams() :
           xSpacing(50000.0),
           ySpacing(50000.0),
@@ -115,7 +116,8 @@ class GridParams {
           calcStdRes(true),
           fixedGrid(false),
           fixControlNodes(false),
-          controlNodesOnly(false)
+          controlNodesOnly(false),
+          pointsHaveIds(true)
           {}
     };
 
@@ -144,6 +146,7 @@ class GridRow {
     void expandRange( long nmin, long nmax );
     void crdRange( DoubleRange &range, int crd );
     long setParamNo( long paramno, GridParams::GridBoundaryOption boundaryOption, bool heightGrid );
+    long nFixed();
     void writeSurferRow( ostream &os, long nrow, int crd );
 
     void allocate();
@@ -172,6 +175,7 @@ class Grid {
     GridPoint & operator() (long c, long r );
     long paramNo( long c, long r );
     long paramCount(){ return paramcount; }
+    long nFixed(){ return nfixed; }
     ostream &dumpSpecTo( ostream &os, bool full=false );
     int writeSurferFiles( string &rootName );
   private:
@@ -179,6 +183,7 @@ class Grid {
     double xy0[2], spacing[2], scale[2];
     long ngrd[2];
     long paramcount;
+    long nfixed;
     bool heightGrid;
     GridPoint dummy;
     GridRow *rows;

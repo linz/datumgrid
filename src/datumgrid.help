@@ -30,6 +30,8 @@ Data file:
     	id east north dheight [class [error]]
     
     (the second format is for height grids). 
+    The id is optional, it can be omitted if the points_have_ids
+    configuration is set to false.
     The east and north coordinates can be in any units (eg lon/lat
     degrees or easting/northing metres).  Whichever is used the final
     grid will be in the same units.
@@ -64,6 +66,10 @@ Command file template:
 # Used to define a height grid (by default a grid of dx dy offsets is calculated)
 
 height_grid [true|false]
+
+# Specifies whether the input data file includes point ids as the first column
+
+points_have_ids [true|false]
 
 # Specify the name of the data file containing the control points.  More than
 # one data file can be used.
@@ -177,5 +183,5 @@ fill_grid [true|false]
 # standardised residuals (more useful, but time consuming to
 # calculate for large grids)
 
-# calc_control_point_stdres [true|false]
+# calculate_control_point_stdres [true|false]
 

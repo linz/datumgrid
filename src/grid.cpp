@@ -74,6 +74,19 @@ long GridRow::setParamNo( long paramno, GridParams::GridBoundaryOption boundaryO
     return paramno;
 }
 
+long GridRow::nFixed()
+{
+    long nfixed=0;
+    if( data )
+    {
+        for( int i=0; i <= cmax-cmin; i++ )
+        {
+            if( data[i].fixed ) nfixed++;
+        }
+    }
+    return nfixed;
+}
+
 void GridRow::writeSurferRow( ostream &os, long nrow, int crd ) {
     for( long i = 0; i < nrow; i++ ) {
         if( i ) {
@@ -206,7 +219,6 @@ Grid::Grid( GridParams &param, ControlPointList &pts ) {
     if( param.fixControlNodes )
     {
         for( i = 0; i < pts.size(); i++ ) {
-           if( param.controlNodesOnly ) pts[0]->setUnused();
            if( pts[i]->isRejected() ) continue;
            double *pxy=pts[i]->coord();
            long cr[2];
@@ -216,8 +228,15 @@ Grid::Grid( GridParams &param, ControlPointList &pts ) {
            double offset=hypot(
                    (pxy[0]-xy[0])*spacing[0],
                    (pxy[1]-xy[1])*spacing[1]);
-           if( offset > param.controlNodeTolerance ) continue;
-           if( ! isValidPoint( cr )) continue;
+           if( offset > param.controlNodeTolerance || ! isValidPoint(cr) )
+           {
+               if( param.controlNodesOnly )
+               {
+                   pts[i]->setRejected();
+                   pts[i]->setUnused();
+               }
+               continue; 
+           }
            GridPoint &gp=(*this)(cr[0],cr[1]);
            gp.fixed=true;
            double *dxy=pts[i]->offset();
@@ -232,7 +251,7 @@ Grid::Grid( GridParams &param, ControlPointList &pts ) {
 
     double p2=param.maxPointProximity*param.maxPointProximity;
     for( i = 0; i < pts.size(); i++ ) {
-       if( pts[i]->isUnused() ) continue;
+       if( pts[i]->isRejected() ) continue;
 
        const double *xy = pts[i]->coord();
        long cr[2];
@@ -305,9 +324,11 @@ Grid::Grid( GridParams &param, ControlPointList &pts ) {
 
     // Now count the parameters in the adjustment.
     paramcount = 0;
+    nfixed = 0;
     for( long r = 0; r < ngy; r++ ) {
        GridRow &row = rows[r];
        paramcount=row.setParamNo(paramcount,param.boundaryOption,heightGrid);
+       nfixed += row.nFixed();
        }
     }
 

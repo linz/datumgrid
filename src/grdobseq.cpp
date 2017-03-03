@@ -529,7 +529,7 @@ int CalculateGridModel( Grid &grd, ControlPointList &pts,
 
     long nsum=sumControlPoints( grd, pts, gi, le, pm );
     cout << "Summed " << nsum << " control points" << endl;
-    if( nsum == 0 )
+    if( nsum == 0 && grd.nFixed() == 0)
     {
         cout << "No data - failed!" << endl;
         return 0;

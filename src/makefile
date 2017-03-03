@@ -15,7 +15,7 @@ LIBFILES= \
 
 LIBO=$(LIBFILES:.cpp=.o)
 
-CPPFLAGS=-g
+CPPFLAGS=-g -std=c++11
 #CPPFLAGS=-g -DDEBUG_GRDOBSEQ
 
 
