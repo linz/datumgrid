@@ -1,0 +1,2 @@
+id,x,y,dx,dy,calcdx,calcdy,resdx,resdy,residual,stdres,class,error,used
+"1",170.8000,-41.4000,10.00000,5.00000,0.00000,0.00000,10.00000,5.00000,0.00000,0.00000,"default",0.01000,1
