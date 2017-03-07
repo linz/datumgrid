@@ -1,0 +1,8 @@
+Config file: ../../datumgrid
+Grid specification
+Grid definition
+Size: 12 rows by 12 cols
+Top left point 1000, 2000
+Spacing 250, 250
+Parameters 280
+Grid written to out/test5_grd.csv
