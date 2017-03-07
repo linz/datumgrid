@@ -110,6 +110,7 @@ class GridParams {
           xerrname("stdx"),
           yerrname("stdy"),
           xycorrname("corrxy"),
+          heightGrid(false),
           printGridParams(false),
           fillGrid(false),
           calcGridCovar(false),

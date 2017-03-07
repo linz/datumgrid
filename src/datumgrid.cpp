@@ -527,7 +527,7 @@ int main( int argc, char *argv[] ) {
              cptfile << cpt.getClass().getName() << "\",";
              cptfile << cpt.getError() << "," ;
              cptfile << (cpt.isRejected() ? 0 : 1) <<  endl;
-             cpt.getClass().addStdRes( cpt.stdResidual(), cpt.isRejected() ? 0 : 1 );
+             cpt.getClass().addStdRes( cpt.stdResidual(), cpt.isRejected() ? 0 : cpt.isNode() ? 2 : 1 );
              }
           }
 

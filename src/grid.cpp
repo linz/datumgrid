@@ -226,8 +226,8 @@ Grid::Grid( GridParams &param, ControlPointList &pts ) {
            convert(pts[i]->coord(),cr);
            convert(cr,xy);
            double offset=hypot(
-                   (pxy[0]-xy[0])*spacing[0],
-                   (pxy[1]-xy[1])*spacing[1]);
+                   (pxy[0]-xy[0])*scale[0],
+                   (pxy[1]-xy[1])*scale[1]);
            if( offset > param.controlNodeTolerance || ! isValidPoint(cr) )
            {
                if( param.controlNodesOnly )
@@ -243,7 +243,6 @@ Grid::Grid( GridParams &param, ControlPointList &pts ) {
            gp.dxy[0]=dxy[0];
            gp.dxy[1]=dxy[1];
            pts[i]->setIsNode();
-           pts[i]->setUnused();
         }
     }
 
