@@ -169,7 +169,6 @@ Grid::Grid( GridParams &param, ControlPointList &pts ) {
         xmin -= borderx; xmax += borderx;
         ymin -= bordery; ymax += bordery;
 
-
         x0 = spacing[0] * floor(xmin/spacing[0]);
         y0 = spacing[1] * floor(ymin/spacing[1]);
 
@@ -183,22 +182,33 @@ Grid::Grid( GridParams &param, ControlPointList &pts ) {
 
     // Define the range of require cells for each row.
 
-    for( i = 0; i < pts.size(); i++ ) {
-       const double *xy = pts[i]->coord();
-       long rmin, rmax, cmin, cmax;
-       rmin = (long) floor( (xy[1] - y0 - bordery)/spacing[1] );
-       rmax = (long)  ceil( (xy[1] - y0 + bordery)/spacing[1] );
-       cmin = (long) floor( (xy[0] - x0 - borderx)/spacing[0] );
-       cmax = (long)  ceil( (xy[0] - x0 + borderx)/spacing[0] );
-       if( rmin >= 0 && rmax < ngy )
-       {
-            for( ; rmin <= rmax; rmin++ ) rows[rmin].expandRange( cmin, cmax );
+    if( param.fixedGrid )
+    {
+         for( i=0 ; i < ngy; i++ ) rows[i].expandRange( 0, ngx-1 );
+    }
+    else
+    {
+
+        for( i = 0; i < pts.size(); i++ ) 
+        {
+           const double *xy = pts[i]->coord();
+           long rmin, rmax, cmin, cmax;
+           rmin = (long) floor( (xy[1] - y0 - bordery)/spacing[1] );
+           rmax = (long)  ceil( (xy[1] - y0 + bordery)/spacing[1] );
+           cmin = (long) floor( (xy[0] - x0 - borderx)/spacing[0] );
+           cmax = (long)  ceil( (xy[0] - x0 + borderx)/spacing[0] );
+           if( rmin >= 0 && rmax < ngy )
+           {
+                for( ; rmin <= rmax; rmin++ ) rows[rmin].expandRange( cmin, cmax );
+           }
+           else
+           {
+               cout << "Error in grid rows (rmin " << rmin 
+                   << " rmax " << rmax 
+                   << " ngx " << ngx << " ngy " << ngy << ")\n";
+           }
        }
-       else
-       {
-           cout << "Error in grid rows!\n";
-       }
-       }
+    }
 
     //  Set up the parameters of the grid..
 
