@@ -21,8 +21,6 @@ using namespace std;
 #include "progress.hpp"
 #include "fixfmt.hpp"
 
-//#define DEBUG_GRDOBSEQ 1
-
 // Grabbed from elsewhere - could be much more efficient!
 
 static double vector_standardised_residual( int size, double *vec, double *cvr, int &rank ) {
@@ -215,17 +213,17 @@ int DistortionObseqn( Grid &grd, long c, long r, Obseqn &oe ) {
    for( int d = 0; d < nDistortionParam; d++ ) {
       double *dp = & distortionParam[d][0];
       for( int nod = 0; nod < 4; nod++ ) {
-         if( prmNo[nod] == 0 ) 
+         bool sumprm=prmNo[nod] != 0;
+         if( sumprm ) valid=1;
+         double *dxy=gp[nod]->dxy;
+         if( sumprm ) oe.A(d+1,prmNo[nod]) = *dp;
+         oe.y(d+1) -= (*dp)*dxy[0];
+         dp++;
+         if( ! heightGrid ) 
          {
-             double *dxy=gp[nod]->dxy;
-             oe.y(d+1) -= (*dp++)*dxy[0];
-             if( ! heightGrid ) oe.y(d+1) -= (*dp)*dxy[1];
-             dp++;
-             continue;
+             oe.y(d+1) -= (*dp)*dxy[1];
+             if( sumprm ) oe.A(d+1,prmNo[nod]+1) = *dp;
          }
-         valid=1;
-         oe.A(d+1,prmNo[nod]) = *dp++;
-         if( ! heightGrid ) oe.A(d+1,prmNo[nod]+1) = *dp;
          dp++;
          }
       }
@@ -423,6 +421,7 @@ long sumControlPoints( Grid &grd, ControlPointList &pts, GridInterpolator &gi,
 #endif
        ControlPoint &cp = *pts[i];
        if( cp.isRejected() ) continue;
+       if( cp.isNode() ) continue;
        if( heightGrid ) HeightControlPointObseqn( grd, cp, gi, oe );
        else ControlPointObseqn( grd, cp, gi, oe );
 #ifdef DEBUG_GRDOBSEQ
@@ -502,6 +501,7 @@ void calcControlPointListResiduals( Grid &grd, ControlPointList &pts, GridInterp
     for( int i = 0; i < pts.size(); i++ ) {
        pm.Update(i);
        ControlPoint &cp = *pts[i];
+       if( cp.isNode() ) continue;
        if( heightGrid ) calcHeightControlPointResidual( grd, cp, gi, le, calcStdRes );
        else calcControlPointResidual( grd, cp, gi, le, calcStdRes );
        }
@@ -527,7 +527,7 @@ int CalculateGridModel( Grid &grd, ControlPointList &pts,
 
     long nsum=sumControlPoints( grd, pts, gi, le, pm );
     cout << "Summed " << nsum << " control points" << endl;
-    if( nsum == 0 )
+    if( nsum == 0 && grd.nFixed() == 0)
     {
         cout << "No data - failed!" << endl;
         return 0;
@@ -575,8 +575,11 @@ int CalculateGridModel( Grid &grd, ControlPointList &pts,
             if( ! oe.CalcValue( le, &dxy, ptrcvr ) )
             {
             }
-            grd(c,r).dxy[0] = dxy(1);
-            if( ! heightGrid ) grd(c,r).dxy[1] = dxy(2);
+#ifdef DEBUG_GRDOBSEQ
+            cout << "Applying offset " << dxy(1) << " " << dxy(2) << "\n";
+#endif
+            grd(c,r).dxy[0] += dxy(1);
+            if( ! heightGrid ) grd(c,r).dxy[1] += dxy(2);
             if( calcCvr )
             {
                 grd(c,r).cvr[0] = cvr(1,1);

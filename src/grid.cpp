@@ -56,7 +56,11 @@ long GridRow::setParamNo( long paramno, GridParams::GridBoundaryOption boundaryO
     {
         for( int i=0; i <= cmax-cmin; i++ )
         {
-            if( inRangeOnly && ! data[i].inrange )
+            if( data[i].fixed )
+            {
+                data[i].paramno=0;
+            }
+            else if( inRangeOnly && ! data[i].inrange )
             {
                 data[i].paramno=boundaryParam;
             }
@@ -68,6 +72,19 @@ long GridRow::setParamNo( long paramno, GridParams::GridBoundaryOption boundaryO
         }
     }
     return paramno;
+}
+
+long GridRow::nFixed()
+{
+    long nfixed=0;
+    if( data )
+    {
+        for( int i=0; i <= cmax-cmin; i++ )
+        {
+            if( data[i].fixed ) nfixed++;
+        }
+    }
+    return nfixed;
 }
 
 void GridRow::writeSurferRow( ostream &os, long nrow, int crd ) {
@@ -89,37 +106,36 @@ void GridRow::writeSurferRow( ostream &os, long nrow, int crd ) {
 Grid::Grid( GridParams &param, ControlPointList &pts ) {
     rows = 0;
 
-    spacing[0] = param.xSpacing;
-    spacing[1] = param.ySpacing;
     scale[0]=param.xScale;
     scale[1]=param.yScale;
     heightGrid=param.heightGrid;
 
-    // Determine the extents covererd by the control points..
-
-    double xmin, ymin, xmax, ymax;
-    int i;
-
-    for( i = 0; i < pts.size(); i++ ) {
-       const double *xy = pts[i]->coord();
-       if( i == 0 ) {
-          xmin = xmax = xy[0];
-          ymin = ymax = xy[1];
-          }
-       else {
-          if( xy[0] < xmin ) xmin = xy[0]; else if( xy[0] > xmax ) xmax = xy[0];
-          if( xy[1] < ymin ) ymin = xy[1]; else if( xy[1] > ymax ) ymax = xy[1];
-          }
-       }
 
     // Work out the number of grid cells required either side of each control
     // point.
 
+    double x0, y0;
+    long ngx, ngy;
+    int i;
+
+    if( param.fixedGrid )
+    {
+        x0=param.xmin;
+        y0=param.ymin;
+        ngx=param.ngridx;
+        ngy=param.ngridy;
+        spacing[0]=(param.xmax-x0)/ngx;
+        spacing[1]=(param.ymax-y0)/ngy;
+        ngx++;
+        ngy++;
+    }
+    else
+    {
+        spacing[0] = param.xSpacing;
+        spacing[1] = param.ySpacing;
+    }
+
     int ptInf = param.pointInfluenceRange+1;
-
-    // Work out the grid location and extents...  Grid points are organised in
-    // the same way as words on a page.
-
     double borderx=param.maxPointProximity/(scale[0]*spacing[0]);
     if( borderx < ptInf ) borderx=ptInf;
     borderx *= spacing[0];
@@ -128,17 +144,37 @@ Grid::Grid( GridParams &param, ControlPointList &pts ) {
     if( bordery < ptInf ) bordery=ptInf;
     bordery *= spacing[1];
 
-    xmin -= borderx; xmax += borderx;
-    ymin -= bordery; ymax += bordery;
+    if( ! param.fixedGrid )
+    {
 
-    double x0, y0;
-    long ngx, ngy;
+        // Determine the extents covererd by the control points..
 
-    x0 = spacing[0] * floor(xmin/spacing[0]);
-    y0 = spacing[1] * floor(ymin/spacing[1]);
+        double xmin, ymin, xmax, ymax;
 
-    ngx = (long) ceil( (xmax - x0)/spacing[0]) + 1;
-    ngy = (long) ceil( (ymax - y0)/spacing[1]) + 1;
+        for( i = 0; i < pts.size(); i++ ) {
+           const double *xy = pts[i]->coord();
+           if( i == 0 ) {
+              xmin = xmax = xy[0];
+              ymin = ymax = xy[1];
+              }
+           else {
+              if( xy[0] < xmin ) xmin = xy[0]; else if( xy[0] > xmax ) xmax = xy[0];
+              if( xy[1] < ymin ) ymin = xy[1]; else if( xy[1] > ymax ) ymax = xy[1];
+              }
+           }
+
+        // Work out the grid location and extents...  Grid points are organised in
+        // the same way as words on a page.
+        //
+        xmin -= borderx; xmax += borderx;
+        ymin -= bordery; ymax += bordery;
+
+        x0 = spacing[0] * floor(xmin/spacing[0]);
+        y0 = spacing[1] * floor(ymin/spacing[1]);
+
+        ngx = (long) ceil( (xmax - x0)/spacing[0]) + 1;
+        ngy = (long) ceil( (ymax - y0)/spacing[1]) + 1;
+    }
 
     // Allocate the grid rows..
 
@@ -146,22 +182,33 @@ Grid::Grid( GridParams &param, ControlPointList &pts ) {
 
     // Define the range of require cells for each row.
 
-    for( i = 0; i < pts.size(); i++ ) {
-       const double *xy = pts[i]->coord();
-       long rmin, rmax, cmin, cmax;
-       rmin = (long) floor( (xy[1] - y0 - bordery)/spacing[1] );
-       rmax = (long)  ceil( (xy[1] - y0 + bordery)/spacing[1] );
-       cmin = (long) floor( (xy[0] - x0 - borderx)/spacing[0] );
-       cmax = (long)  ceil( (xy[0] - x0 + borderx)/spacing[0] );
-       if( rmin >= 0 && rmax < ngy )
-       {
-            for( ; rmin <= rmax; rmin++ ) rows[rmin].expandRange( cmin, cmax );
+    if( param.fixedGrid )
+    {
+         for( i=0 ; i < ngy; i++ ) rows[i].expandRange( 0, ngx-1 );
+    }
+    else
+    {
+
+        for( i = 0; i < pts.size(); i++ ) 
+        {
+           const double *xy = pts[i]->coord();
+           long rmin, rmax, cmin, cmax;
+           rmin = (long) floor( (xy[1] - y0 - bordery)/spacing[1] );
+           rmax = (long)  ceil( (xy[1] - y0 + bordery)/spacing[1] );
+           cmin = (long) floor( (xy[0] - x0 - borderx)/spacing[0] );
+           cmax = (long)  ceil( (xy[0] - x0 + borderx)/spacing[0] );
+           if( rmin >= 0 && rmax < ngy )
+           {
+                for( ; rmin <= rmax; rmin++ ) rows[rmin].expandRange( cmin, cmax );
+           }
+           else
+           {
+               cout << "Error in grid rows (rmin " << rmin 
+                   << " rmax " << rmax 
+                   << " ngx " << ngx << " ngy " << ngy << ")\n";
+           }
        }
-       else
-       {
-           cout << "Error in grid rows!\n";
-       }
-       }
+    }
 
     //  Set up the parameters of the grid..
 
@@ -177,6 +224,38 @@ Grid::Grid( GridParams &param, ControlPointList &pts ) {
        row.allocate();
        }
 
+    // Fix control point nodes...
+
+    if( param.fixControlNodes )
+    {
+        for( i = 0; i < pts.size(); i++ ) {
+           if( pts[i]->isRejected() ) continue;
+           double *pxy=pts[i]->coord();
+           long cr[2];
+           double xy[2];
+           convert(pts[i]->coord(),cr);
+           convert(cr,xy);
+           double offset=hypot(
+                   (pxy[0]-xy[0])*scale[0],
+                   (pxy[1]-xy[1])*scale[1]);
+           if( offset > param.controlNodeTolerance || ! isValidPoint(cr) )
+           {
+               if( param.controlNodesOnly )
+               {
+                   pts[i]->setRejected();
+                   pts[i]->setUnused();
+               }
+               continue; 
+           }
+           GridPoint &gp=(*this)(cr[0],cr[1]);
+           gp.fixed=true;
+           double *dxy=pts[i]->offset();
+           gp.dxy[0]=dxy[0];
+           gp.dxy[1]=dxy[1];
+           pts[i]->setIsNode();
+        }
+    }
+
     // Define which points are within range of a control point
 
     double p2=param.maxPointProximity*param.maxPointProximity;
@@ -184,6 +263,14 @@ Grid::Grid( GridParams &param, ControlPointList &pts ) {
        if( pts[i]->isRejected() ) continue;
 
        const double *xy = pts[i]->coord();
+       long cr[2];
+       convert(xy,cr);
+       if( ! isValidPoint(cr) )
+       {
+           pts[0]->setUnused();
+           continue;
+       }
+       if( pts[i]->isRejected() ) continue;
        long rmin, rmax, cmin, cmax, r0, c0;
        r0 = (long) floor((xy[1] - y0)/spacing[1]);
        rmin = (long)  ceil( ((xy[1] - y0 - bordery)/spacing[1])-0.001 );
@@ -246,9 +333,11 @@ Grid::Grid( GridParams &param, ControlPointList &pts ) {
 
     // Now count the parameters in the adjustment.
     paramcount = 0;
+    nfixed = 0;
     for( long r = 0; r < ngy; r++ ) {
        GridRow &row = rows[r];
        paramcount=row.setParamNo(paramcount,param.boundaryOption,heightGrid);
+       nfixed += row.nFixed();
        }
     }
 
@@ -258,13 +347,13 @@ Grid::~Grid() {
     }
 
 
-void Grid::convert( double xy[2], long cr[2] ) {
+void Grid::convert( const double xy[2], long cr[2] ) {
     cr[0] = (long) floor((xy[0] - xy0[0])/spacing[0]);
     cr[1] = (long) floor((xy[1] - xy0[1])/spacing[1]);
     }
 
 
-void Grid::convert( long c, long r, double xy[2] ){
+void Grid::convert( const long c, const long r, double xy[2] ){
     xy[0] = xy0[0] + c * spacing[0];
     xy[1] = xy0[1] + r * spacing[1];
     }

@@ -17,8 +17,8 @@ class ControlPointClass {
      static ControlPointClass &named( const string &ptclass );
      void setError( double wgt );
      double getError();
-     void setRejected( char rejected = 1 ){ this->rejected = rejected;}
-     char isRejected(){ return rejected; }
+     void setRejected( bool rejected = true ){ this->rejected = rejected;}
+     bool isRejected(){ return rejected; }
      static void setDefaultError( double wgt );
      const string &getName(){ return name; }
      void clearSumStdRes();
@@ -32,11 +32,11 @@ class ControlPointClass {
      static ControlPointClass *findClassNamed( const string &ptclass );
      string name;
      double error;
-     char rejected;
      long usedCount;
      double usedSSR;
      long unusedCount;
      double unusedSSR;
+     bool rejected;
      static double defaultError;
      static SimplePointerArray<ControlPointClass> list;
    };
@@ -47,8 +47,13 @@ class ControlPoint {
       ControlPoint( const string &id, double x, double y, double dx, double dy, string &ptclass );
       void setError( double wgt );
       double getError();
-      void setRejected( char rejected = 1 ){ this->rejected = rejected; }
-      char isRejected();
+      void setRejected( bool rejected = true ){ this->rejected = rejected; }
+      bool isRejected();
+      void setIsNode( bool isnode = true ){ this->isnode = isnode; }
+      bool isNode(){ return isnode; }
+      void setUnused( bool unused = true ){ this->unused = unused; }
+      bool isUnused(){ return unused; }
+      bool isUsed(){ return ! unused; }
       ControlPointClass &getClass(){ return ptclass; }
       const string &getId(){ return id; }
       double *coord(){ return xy;}
@@ -65,7 +70,9 @@ class ControlPoint {
       double distres;
       double stdres;
       double error;
-      char rejected;
+      bool rejected;
+      bool unused;
+      bool isnode;
       ControlPointClass &ptclass;
    };
 
@@ -75,6 +82,7 @@ class ControlPointList : public SimplePointerArray<ControlPoint> {
       ControlPointList() : SimplePointerArray<ControlPoint>( 32, 1 ) {;}
       ControlPoint * operator[] ( const string &id );
       ControlPoint * operator[] ( int i ){ return SimplePointerArray<ControlPoint>::itemAt(i); }
+      bool isUsed();
    };
 
 

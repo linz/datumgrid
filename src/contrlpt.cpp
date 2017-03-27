@@ -109,8 +109,8 @@ double ControlPoint::getError() {
    return error > 0.0 ? error : ptclass.getError();
    }
 
-char ControlPoint::isRejected() {
-   return rejected || ptclass.isRejected();
+bool ControlPoint::isRejected() {
+   return rejected || ptclass.isRejected() || unused;
    }
 
 
@@ -128,3 +128,11 @@ ControlPoint *ControlPointList::operator [] ( const string &id ) {
     // string::set_case_sensitive( cs );
     return cpt;
     }
+
+bool ControlPointList::isUsed()
+{
+    for( int i = 0; i < size(); i++ ) {
+        if( itemAt(i)->isUsed() ) return true;
+    }
+    return false;
+}
