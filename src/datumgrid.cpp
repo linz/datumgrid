@@ -184,7 +184,10 @@ int readCommandFile( char *filename, GridParams &param, ControlPointList &pts ) 
                param.ySpacing=param.xSpacing;
            }
            }
-
+       else if ( command == "grid_offset" ) {
+           readNumber( record, param.xoffset, error );
+           readNumber( record, param.yoffset, error );
+           }
        else if ( command == "coordinate_to_metres" ) {
            readPositiveNumber( record, param.xScale, error );
            if( ! readPositiveNumber( record, param.yScale, error, true ))

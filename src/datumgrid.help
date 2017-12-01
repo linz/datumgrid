@@ -87,11 +87,13 @@ coordinate_to_metres #.### [#.###]
 # max values, and number of east and north grid cells (number of 
 # east and north values -1), or by specifying the grid spacing,
 # in which case the grid is calculated by expanding around the 
-# control points.
+# control points. Optionally the grid spacing definition can
+# also include a reference point with which the grid is aligned.
 
 grid_definition emin nmin emax nmax ngride ngridn
 
 grid_spacing #.### [#.###]
+grid_offset #.### #.###
 required_point_proximity #.####
 beyond_proximity [fit|zero|ignore]
 

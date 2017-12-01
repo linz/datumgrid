@@ -48,6 +48,8 @@ class GridParams {
        double ymin;
        double xmax;
        double ymax;
+       double xoffset;
+       double yoffset;
        int ngridx;
        int ngridy;
        double xScale;
@@ -87,6 +89,8 @@ class GridParams {
           ymin(0.0),
           xmax(0.0),
           ymax(0.0),
+          xoffset(0.0),
+          yoffset(0.0),
           ngridx(0),
           ngridy(0),
           xScale(1.0),

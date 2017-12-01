@@ -169,8 +169,8 @@ Grid::Grid( GridParams &param, ControlPointList &pts ) {
         xmin -= borderx; xmax += borderx;
         ymin -= bordery; ymax += bordery;
 
-        x0 = spacing[0] * floor(xmin/spacing[0]);
-        y0 = spacing[1] * floor(ymin/spacing[1]);
+        x0 = spacing[0] * floor((xmin-param.xoffset)/spacing[0]) + param.xoffset;
+        y0 = spacing[1] * floor((ymin-param.yoffset)/spacing[1]) + param.yoffset; 
 
         ngx = (long) ceil( (xmax - x0)/spacing[0]) + 1;
         ngy = (long) ceil( (ymax - y0)/spacing[1]) + 1;
