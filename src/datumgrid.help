@@ -155,6 +155,7 @@ class cc [error #.###] [reject]
 
 # Specify the column names for the output grid x, y, dx, dy 
 # columns (x, y, dh for height grids)
+
 # Uncertainty columns are std err of dx, std err of dy,
 # and correlation of dx,dy, or just std err of dh for height grids
 

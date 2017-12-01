@@ -263,8 +263,9 @@ int readCommandFile( char *filename, GridParams &param, ControlPointList &pts ) 
            record >> id;
            ControlPoint *cpt = pts[id];
            if( !cpt ) {
-               error = "Invalid point id ";
-               error += id;
+               cerr << "\nWarning in command file " << filename << " record " << nrec << "\n";
+               cerr << "Invalid point id " << id << "\n";
+
                }
            else {
                double errVal;
