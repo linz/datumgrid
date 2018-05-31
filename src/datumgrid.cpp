@@ -113,7 +113,7 @@ int readBool( istream &is, bool &val, string &errmess, bool optional=false ) {
 }
 
 
-int readCommandFile( char *filename, GridParams &param, ControlPointList &pts ) {
+int readCommandFile( char *filename, GridParams &param ) {
    ifstream ifs(filename);
    if( ! ifs.good() ) {
        cerr << "Cannot open command file " << filename << endl;
@@ -140,23 +140,9 @@ int readCommandFile( char *filename, GridParams &param, ControlPointList &pts ) 
 
        error = "";
        if( command == "data_file" ) {
-           string df;
-           record >> df;
-           if( record.fail() )
-           {
-              error = "Data file name missing";
-              }
-           else {
-              if( ! readControlPointFile( df, pts, param.heightGrid, param.pointsHaveIds ) ) {
-                 error = "No control points in control point file\n";
-                 }
-              }
+           // Do nothing
            }
        else if ( command == "height_grid" ) {
-           if( pts.size() > 0 )
-           {
-               error = "height_grid option must be before data_file";
-           }
            readBool(record,param.heightGrid,error);
            if( param.heightGrid ) param.dxcolname="dh";
            if( param.heightGrid ) param.xerrname="stdh";
@@ -262,27 +248,7 @@ int readCommandFile( char *filename, GridParams &param, ControlPointList &pts ) 
            }
            }
        else if ( command == "point" ) {
-           string id;
-           record >> id;
-           ControlPoint *cpt = pts[id];
-           if( !cpt ) {
-               cerr << "\nWarning in command file " << filename << " record " << nrec << "\n";
-               cerr << "Invalid point id " << id << "\n";
-
-               }
-           else {
-               double errVal;
-               char reject;
-               if( readErrorOrReject( record, errVal, reject, error ) ) {
-                   if( reject ) {
-                      cpt->setRejected();
-                      }
-                   else {
-                      cpt->setError( errVal );
-                      }
-                    }
-
-                }
+           // do nothing;
            }
 
        else if ( command == "fix_node_points" ) {
@@ -363,6 +329,81 @@ int readCommandFile( char *filename, GridParams &param, ControlPointList &pts ) 
    return ok;
    }
 
+int readControlPoints( string filename, GridParams &param, ControlPointList &pts )
+{
+   return readControlPointFile( filename, pts, param.heightGrid, param.pointsHaveIds );
+}
+
+int readCommandData( char *filename, GridParams &param, ControlPointList &pts ) {
+   ifstream ifs(filename);
+   if( ! ifs.good() ) {
+       cerr << "Cannot open command file " << filename << endl;
+       return 0;
+       }
+
+   // string::set_case_sensitive(0);
+
+   char buf[MAXREC];
+   string command, error;
+   int ok = 1;
+   int nrec = 0;
+
+   while( ifs.good() ) {
+       ifs.getline( buf, MAXREC );
+       nrec++;
+       int count=ifs.gcount();
+       if( count < 2 ) continue;
+       istringstream record( buf );
+       // cout << "\"" << buf << "\" " << count << "\n";
+       record >> command;
+       if( record.fail() || command[0] == '!' ) continue;
+       if( command[0] == '#' ) continue;
+
+       error = "";
+       if( command == "data_file" ) {
+           string df;
+           record >> df;
+           if( record.fail() ) {
+              error = "Data file name missing";
+              }
+           else {
+              if( ! readControlPoints( df, param, pts ) ) {
+                 error = "No control points in control point file\n";
+                 }
+              }
+           }
+       else if ( command == "point" ) {
+           string id;
+           record >> id;
+           ControlPoint *cpt = pts[id];
+           if( !cpt ) {
+               cerr << "\nWarning in command file " << filename << " record " << nrec << "\n";
+               cerr << "Invalid point id " << id << "\n";
+
+               }
+           else {
+               double errVal;
+               char reject;
+               if( readErrorOrReject( record, errVal, reject, error ) ) {
+                   if( reject ) {
+                      cpt->setRejected();
+                      }
+                   else {
+                      cpt->setError( errVal );
+                      }
+                    }
+
+                }
+           }
+       if( error != "" ) {
+           cerr << "\nError in command file " << filename << " record " << nrec << "\n";
+           cerr << "Command " << command << ": " << error << "\n";
+           ok = 0;
+           }
+       }
+   return ok;
+   }
+
 
 int main( int argc, char *argv[] ) {
 
@@ -370,22 +411,34 @@ int main( int argc, char *argv[] ) {
    GridParams param;
 
    if( argc < 3 ) {
-      cout << "Syntax: datumgrid command_file_name output_file\n\n";
+      cout << "Syntax: datumgrid command_file_name [data_file] output_file\n\n";
       cout << "The output file name is the root name for three output files\n";
       cout << "   xxxxx_cpt.csv  xxxxx_grd.csv  xxxxx_def.csv\n";
       return 0;
       }
 
-   if( ! readCommandFile( argv[1], param, points ) ) {
+   char *cfgfile=argv[1];
+   char *dpfile=argc > 3 ? argv[2] : 0;
+   string rootfilename = argc > 3 ? argv[3] : argv[2];
+
+   if( ! readCommandFile( argv[1], param ) ) {
       return 0;
       }
 
+   if( dpfile ) {
+       if( ! readControlPoints( dpfile, param, points ) ) {
+           cerr << "No data found in control point file " << dpfile << endl;
+           return 0;
+           }
+       }
+   else if( ! readCommandData( argv[1], param, points ) ) {
+      return 0;
+      }
 
    bool heightGrid = param.heightGrid;
-   string rootfilename = argv[2];
    string logfilename = rootfilename + "_log.txt";
    ofstream logfile( logfilename.c_str() );
-   logfile << "Config file: " << argv[0] << endl;
+   logfile << "Config file: " << cfgfile << endl;
 
 // Set up an interpolator
 

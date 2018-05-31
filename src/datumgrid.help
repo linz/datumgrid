@@ -11,7 +11,7 @@ Running the program:
 To run the program create a data file and a command file (below).  Then
 run the command using
 
-datumgrid command_file_name output_file
+datumgrid command_file_name [data_point_file] output_file
 
 Here command_file_name is the name of the command file, and output_file
 is the root name of the output file.  Output files will be generated
@@ -73,6 +73,8 @@ points_have_ids [true|false]
 
 # Specify the name of the data file containing the control points.  More than
 # one data file can be used.
+#
+# These can be overridden by specifying the data file name on the command line.
 
 data_file  filename
 
@@ -149,6 +151,9 @@ constant_weight #.###
 # for individual points in the command file.  If specified
 # for specific points they override class errors, and if defined
 # for a class that overrides the default point errlr.
+#
+# Point specification are ignored if the data file is read from
+# the command line
 
 point id [error #.###] [reject]
 class cc [error #.###] [reject]
