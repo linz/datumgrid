@@ -1,0 +1,8 @@
+Config file: test1.cfg
+Grid specification
+Grid definition
+Size: 6 rows by 6 cols
+Top left point -100, -300
+Spacing 100, 100
+Parameters 36
+Grid written to out/test1_2_grd.csv

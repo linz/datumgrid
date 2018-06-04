@@ -1,8 +1,8 @@
-Config file: test0.cfg
+Config file: test1.cfg
 Grid specification
 Grid definition
 Size: 6 rows by 6 cols
 Top left point -400, -400
 Spacing 200, 200
 Parameters 36
-Grid written to out/test0_grd.csv
+Grid written to out/test1p_grd.csv

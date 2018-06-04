@@ -11,8 +11,10 @@
 #include <fstream>
 #include <sstream>
 #include <cstring>
+#include <string>
 #include <cmath>
 #include <iomanip>
+#include <vector>
 
 using namespace std;
 
@@ -112,8 +114,194 @@ int readBool( istream &is, bool &val, string &errmess, bool optional=false ) {
    return 0;
 }
 
+int readGridParam( string gparam, istream &record, string &error, GridParams &param )
+{
+    error="";
+    if ( gparam == "height_grid" ) {
+       readBool(record,param.heightGrid,error);
+       if( param.heightGrid ) param.dxcolname="dh";
+       if( param.heightGrid ) param.xerrname="stdh";
+       }
+   else if ( gparam == "points_have_ids" ) {
+       readBool(record,param.pointsHaveIds,error);
+       }
+   else if ( gparam == "grid_definition" ) {
+       readNumber( record, param.xmin, error );
+       readNumber( record, param.ymin, error );
+       readNumber( record, param.xmax, error );
+       readNumber( record, param.ymax, error );
+       readPositiveInt( record, param.ngridx, error );
+       readPositiveInt( record, param.ngridy, error );
+       param.fixedGrid=true;
+       if( param.xmin >= param.xmax || param.ymin >= param.ymax )
+       {
+           error="Grid parameters are outside valid range";
+       }
+       }
+   else if ( gparam == "grid_spacing" ) {
+       readPositiveNumber( record, param.xSpacing, error );
+       if( ! readPositiveNumber( record, param.ySpacing, error, true ))
+       {
+           param.ySpacing=param.xSpacing;
+       }
+       }
+   else if ( gparam == "grid_offset" ) {
+       readNumber( record, param.xoffset, error );
+       readNumber( record, param.yoffset, error );
+       }
+   else if ( gparam == "coordinate_to_metres" ) {
+       readPositiveNumber( record, param.xScale, error );
+       if( ! readPositiveNumber( record, param.yScale, error, true ))
+       {
+           param.yScale=param.xScale;
+       }
+       }
 
-int readCommandFile( char *filename, GridParams &param ) {
+   else if ( gparam ==  "required_point_proximity" ) {
+       readPositiveNumber( record, param.maxPointProximity, error );
+       }
+
+   else if ( gparam == "beyond_proximity" ) {
+       string option;
+       record >> option;
+       if( option == "fit" )
+       {
+           param.boundaryOption=GridParams::grdFit;
+       }
+       else if( option == "zero" )
+       {
+           param.boundaryOption=GridParams::grdZero;
+       }
+       else if( option == "ignore" )
+       {
+           param.boundaryOption=GridParams::grdIgnore;
+       }
+       else
+       {
+           error = "beyond_proximity option must be one of \"fit\", \"zero\", or \"ignore\"";
+       }
+       }
+   else if ( gparam == "height_zero_value" ) {
+       readNumber( record, param.heightZero, error );
+       }
+   else if ( gparam == "distortion_error" ) {
+       readPositiveNumber( record, param.distortionError, error );
+       }
+
+   else if ( gparam == "shear_weight" ) {
+       readPositiveNumber( record, param.shearWeight, error, false, true  );
+       }
+   else if ( gparam == "scale_weight" ) {
+       readPositiveNumber( record, param.scaleWeight, error, false, true  );
+       }
+   else if ( gparam == "constant_weight" ) {
+       readPositiveNumber( record, param.nonConstantWeight, error, false, true  );
+       }
+   else if ( gparam == "non_linear_weight" ) {
+       readPositiveNumber( record, param.nonLinearWeight, error, false, true  );
+       }
+
+   else if ( gparam == "default_point_error" ) {
+       double dfltError;
+       if( readPositiveNumber( record, dfltError, error ) ) {
+          ControlPointClass::setDefaultError( dfltError );
+          }
+       }
+
+   else if ( gparam == "coordinate_precision" ) {
+       record >> param.ndpCoord;
+       if( record.fail() || param.ndpCoord < 0 || param.ndpCoord > 10 )
+       {
+           error="Invalid coordinate precision, must be between 0 and 10";
+       }
+       }
+   else if ( gparam == "value_precision" ) {
+       record >> param.ndpValue;
+       if( record.fail() || param.ndpValue < 0 || param.ndpValue > 10 )
+       {
+           error="Invalid value precision, must be between 0 and 10";
+       }
+       }
+
+   else if ( gparam == "fix_node_points" ) {
+       readBool(record,param.fixControlNodes,error);
+       }
+   else if ( gparam == "node_points_only" ) {
+       readBool(record,param.controlNodesOnly,error);
+       }
+   else if ( gparam == "node_point_tolerance" ) {
+       readPositiveNumber( record, param.controlNodeTolerance, error );
+       }
+
+   else if ( gparam == "class" ) {
+       string clsName;
+       record >> clsName;
+       if( clsName == "" ) {
+           error = "Missing class name";
+           }
+       else {
+           ControlPointClass &cpc = ControlPointClass::named(clsName);
+           double errVal;
+           char reject;
+           if( readErrorOrReject( record, errVal, reject, error )) {
+               if( reject ) {
+                  cpc.setRejected();
+                  }
+               else {
+                  cpc.setError( errVal );
+                  }
+                }
+           }
+
+       }
+
+   else if ( gparam == "columns" ) {
+       record >> param.xcolname >> param.ycolname >> param.dxcolname;
+       if( ! param.heightGrid ) record >> param.dycolname;
+       if( record.fail() )
+       {
+           error="Missing column names";
+       }
+       }
+   else if ( gparam == "uncertainty_columns" ) {
+       record >> param.xerrname;
+       if( ! param.heightGrid ) record >> param.yerrname >> param.xycorrname;
+       if( record.fail() )
+       {
+           error="Missing column names";
+       }
+       }
+
+   else if( gparam == "print_grid_params" )
+   {
+       readBool(record,param.printGridParams,error);
+   }
+   else if( gparam == "fill_grid" )
+   {
+       readBool(record,param.fillGrid,error);
+   }
+   else if( gparam == "calculate_grid_uncertainty" )
+   {
+       readBool(record,param.calcGridCovar,error);
+   }
+   else if( gparam == "calculate_control_point_stdres" )
+   {
+       readBool(record,param.calcStdRes,error);
+   }
+   else {
+       error = "Invalid gparam";
+       }
+   return error == "" ? 1 : 0;
+}
+
+int readGridParam( string gparam, string value, string &errmess, GridParams &param )
+{
+   istringstream record( value );
+   return readGridParam( gparam, record, errmess, param );
+}
+
+
+int readCommandFile( string filename, GridParams &param ) {
    ifstream ifs(filename);
    if( ! ifs.good() ) {
        cerr << "Cannot open command file " << filename << endl;
@@ -142,190 +330,18 @@ int readCommandFile( char *filename, GridParams &param ) {
        if( command == "data_file" ) {
            // Do nothing
            }
-       else if ( command == "height_grid" ) {
-           readBool(record,param.heightGrid,error);
-           if( param.heightGrid ) param.dxcolname="dh";
-           if( param.heightGrid ) param.xerrname="stdh";
-           }
-       else if ( command == "points_have_ids" ) {
-           readBool(record,param.pointsHaveIds,error);
-           }
-       else if ( command == "grid_definition" ) {
-           readNumber( record, param.xmin, error );
-           readNumber( record, param.ymin, error );
-           readNumber( record, param.xmax, error );
-           readNumber( record, param.ymax, error );
-           readPositiveInt( record, param.ngridx, error );
-           readPositiveInt( record, param.ngridy, error );
-           param.fixedGrid=true;
-           if( param.xmin >= param.xmax || param.ymin >= param.ymax )
-           {
-               error="Grid parameters are outside valid range";
-           }
-           }
-       else if ( command == "grid_spacing" ) {
-           readPositiveNumber( record, param.xSpacing, error );
-           if( ! readPositiveNumber( record, param.ySpacing, error, true ))
-           {
-               param.ySpacing=param.xSpacing;
-           }
-           }
-       else if ( command == "grid_offset" ) {
-           readNumber( record, param.xoffset, error );
-           readNumber( record, param.yoffset, error );
-           }
-       else if ( command == "coordinate_to_metres" ) {
-           readPositiveNumber( record, param.xScale, error );
-           if( ! readPositiveNumber( record, param.yScale, error, true ))
-           {
-               param.yScale=param.xScale;
-           }
-           }
-
-       else if ( command ==  "required_point_proximity" ) {
-           readPositiveNumber( record, param.maxPointProximity, error );
-           }
-
-       else if ( command == "beyond_proximity" ) {
-           string option;
-           record >> option;
-           if( option == "fit" )
-           {
-               param.boundaryOption=GridParams::grdFit;
-           }
-           else if( option == "zero" )
-           {
-               param.boundaryOption=GridParams::grdZero;
-           }
-           else if( option == "ignore" )
-           {
-               param.boundaryOption=GridParams::grdIgnore;
-           }
-           else
-           {
-               error = "beyond_proximity option must be one of \"fit\", \"zero\", or \"ignore\"";
-           }
-           }
-       else if ( command == "height_zero_value" ) {
-           readNumber( record, param.heightZero, error );
-           }
-       else if ( command == "distortion_error" ) {
-           readPositiveNumber( record, param.distortionError, error );
-           }
-
-       else if ( command == "shear_weight" ) {
-           readPositiveNumber( record, param.shearWeight, error, false, true  );
-           }
-       else if ( command == "scale_weight" ) {
-           readPositiveNumber( record, param.scaleWeight, error, false, true  );
-           }
-       else if ( command == "constant_weight" ) {
-           readPositiveNumber( record, param.nonConstantWeight, error, false, true  );
-           }
-       else if ( command == "non_linear_weight" ) {
-           readPositiveNumber( record, param.nonLinearWeight, error, false, true  );
-           }
-
-       else if ( command == "default_point_error" ) {
-           double dfltError;
-           if( readPositiveNumber( record, dfltError, error ) ) {
-              ControlPointClass::setDefaultError( dfltError );
-              }
-           }
-
-       else if ( command == "coordinate_precision" ) {
-           record >> param.ndpCoord;
-           if( record.fail() || param.ndpCoord < 0 || param.ndpCoord > 10 )
-           {
-               error="Invalid coordinate precision, must be between 0 and 10";
-           }
-           }
-       else if ( command == "value_precision" ) {
-           record >> param.ndpValue;
-           if( record.fail() || param.ndpValue < 0 || param.ndpValue > 10 )
-           {
-               error="Invalid value precision, must be between 0 and 10";
-           }
-           }
        else if ( command == "point" ) {
            // do nothing;
            }
-
-       else if ( command == "fix_node_points" ) {
-           readBool(record,param.fixControlNodes,error);
-           }
-       else if ( command == "node_points_only" ) {
-           readBool(record,param.controlNodesOnly,error);
-           }
-       else if ( command == "node_point_tolerance" ) {
-           readPositiveNumber( record, param.controlNodeTolerance, error );
-           }
-
-       else if ( command == "class" ) {
-           string clsName;
-           record >> clsName;
-           if( clsName == "" ) {
-               error = "Missing class name";
-               }
-           else {
-               ControlPointClass &cpc = ControlPointClass::named(clsName);
-               double errVal;
-               char reject;
-               if( readErrorOrReject( record, errVal, reject, error )) {
-                   if( reject ) {
-                      cpc.setRejected();
-                      }
-                   else {
-                      cpc.setError( errVal );
-                      }
-                    }
-               }
-
-           }
-
-       else if ( command == "columns" ) {
-           record >> param.xcolname >> param.ycolname >> param.dxcolname;
-           if( ! param.heightGrid ) record >> param.dycolname;
-           if( record.fail() )
-           {
-               error="Missing column names";
-           }
-           }
-       else if ( command == "uncertainty_columns" ) {
-           record >> param.xerrname;
-           if( ! param.heightGrid ) record >> param.yerrname >> param.xycorrname;
-           if( record.fail() )
-           {
-               error="Missing column names";
-           }
-           }
-
-       else if( command == "print_grid_params" )
-       {
-           readBool(record,param.printGridParams,error);
-       }
-       else if( command == "fill_grid" )
-       {
-           readBool(record,param.fillGrid,error);
-       }
-       else if( command == "calculate_grid_uncertainty" )
-       {
-           readBool(record,param.calcGridCovar,error);
-       }
-       else if( command == "calculate_control_point_stdres" )
-       {
-           readBool(record,param.calcStdRes,error);
-       }
        else {
-           error = "Invalid command";
-           }
+           readGridParam( command, record, error, param );
+       }
        if( error != "" ) {
            cerr << "\nError in command file " << filename << " record " << nrec << "\n";
            cerr << "Command " << command << ": " << error << "\n";
            ok = 0;
            }
        }
-   if( param.controlNodesOnly ) param.fixControlNodes=true;
    return ok;
    }
 
@@ -334,7 +350,7 @@ int readControlPoints( string filename, GridParams &param, ControlPointList &pts
    return readControlPointFile( filename, pts, param.heightGrid, param.pointsHaveIds );
 }
 
-int readCommandData( char *filename, GridParams &param, ControlPointList &pts ) {
+int readCommandData( string filename, GridParams &param, ControlPointList &pts ) {
    ifstream ifs(filename);
    if( ! ifs.good() ) {
        cerr << "Cannot open command file " << filename << endl;
@@ -411,27 +427,59 @@ int main( int argc, char *argv[] ) {
    GridParams param;
 
    if( argc < 3 ) {
-      cout << "Syntax: datumgrid command_file_name [data_file] output_file\n\n";
+      cout << "Syntax: datumgrid [param=value ...] command_file_name [data_file] output_file\n\n";
       cout << "The output file name is the root name for three output files\n";
       cout << "   xxxxx_cpt.csv  xxxxx_grd.csv  xxxxx_def.csv\n";
       return 0;
       }
 
-   char *cfgfile=argv[1];
-   char *dpfile=argc > 3 ? argv[2] : 0;
-   string rootfilename = argc > 3 ? argv[3] : argv[2];
+   string cfgfile;
+   string dpfile;
+   string rootfilename;
+   vector<string> params;
+   
+   for( int i=1; i < argc; i++ )
+   {
+       string arg=argv[i];
+       int iparam=arg.find('=');
+       if( iparam != string::npos )
+       {
+           params.push_back(arg);
+       }
+       else if( cfgfile == "" ) cfgfile=arg;
+       else if( rootfilename == "" ) rootfilename=arg;
+       else if( dpfile == "" ) { dpfile=rootfilename; rootfilename=arg; }
+       else 
+       {
+               cerr << "Extra parameter " << arg << endl;
+       }
+   }
 
-   if( ! readCommandFile( argv[1], param ) ) {
+
+   if( ! readCommandFile( cfgfile, param ) ) {
       return 0;
       }
 
-   if( dpfile ) {
+   for( auto parg=params.begin(); parg < params.end(); parg++ )
+   {
+       string arg=*parg;
+       int iparam=arg.find('=');
+       string error;
+       if( ! readGridParam( arg.substr(0,iparam), arg.substr(iparam+1), error, param) )
+       {
+           cerr << "Invalid grid parameter " << arg << ": " << error << endl;
+           return 0;
+       }
+   }
+   if( param.controlNodesOnly ) param.fixControlNodes=true;
+
+   if( dpfile != "" ) {
        if( ! readControlPoints( dpfile, param, points ) ) {
            cerr << "No data found in control point file " << dpfile << endl;
            return 0;
            }
        }
-   else if( ! readCommandData( argv[1], param, points ) ) {
+   else if( ! readCommandData( cfgfile, param, points ) ) {
       return 0;
       }
 

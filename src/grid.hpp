@@ -82,6 +82,7 @@ class GridParams {
        bool fixControlNodes;
        bool controlNodesOnly;
        bool pointsHaveIds;
+
        GridParams() :
           xSpacing(50000.0),
           ySpacing(50000.0),
@@ -124,6 +125,7 @@ class GridParams {
           controlNodesOnly(false),
           pointsHaveIds(true)
           {}
+
     };
 
 

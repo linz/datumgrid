@@ -1,4 +1,4 @@
-Config file: ../../datumgrid
+Config file: test1.cfg
 Grid specification
 Grid definition
 Size: 7 rows by 7 cols
