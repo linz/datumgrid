@@ -636,7 +636,7 @@ int main( int argc, char *argv[] ) {
              }
           }
 
-       if( 0 ){
+       if( 1 ){
           logfile << "Summary of residuals by class\n";
           for( int i = 0; i < ControlPointClass::count(); i++ ) {
              ControlPointClass &cpc = *ControlPointClass::classNumber(i);

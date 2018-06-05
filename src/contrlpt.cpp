@@ -98,7 +98,9 @@ ControlPoint::ControlPoint( const string &id, double x, double y, double dx, dou
    dxy[0] = dx; dxy[1] = dy;
    cxy[0] = cxy[1] = distres = stdres = 0.0;
    error = 0.0;
-   rejected = 0;
+   rejected = false;
+   unused = false;
+   isnode = false;
    }
 
 void ControlPoint::setError( double wgt ) {
