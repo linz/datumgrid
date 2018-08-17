@@ -459,6 +459,12 @@ void calcControlPointResidual( Grid &grd, ControlPoint &cp, GridInterpolator &gi
         tmpcvr[2] = wgt + sign * cvr(2,2);
         int rank;
         cp.stdResidual() = vector_standardised_residual( 2, tmpvec, tmpcvr, rank );
+        double proberr=0.0;
+        if( cp.stdResidual() > 0.0 )
+        {
+            proberr=cp.distanceResidual()*cp.distanceResidual()/(cp.getError()*cp.stdResidual());
+        }
+        cp.probError()=proberr;
     }
     else
     {
@@ -484,7 +490,9 @@ void calcHeightControlPointResidual( Grid &grd, ControlPoint &cp, GridInterpolat
         double wgt = cp.getError();
         wgt *= wgt;
         wgt = wgt + sign * cvr(1,1);
-        cp.stdResidual() = wgt > 0 ? cp.distanceResidual()/sqrt(wgt) : 1.0;
+        if( wgt > 0.0 ) wgt=sqrt(wgt);
+        cp.stdResidual() = wgt > 0 ? cp.distanceResidual()/wgt : 1.0;
+        cp.probError()=wgt > 0 ? cp.distanceResidual()*(cp.getError()/wgt) : 0.0;
     }
     else
     {

@@ -61,6 +61,7 @@ class ControlPoint {
       double *calcOffset(){ return cxy; }
       double &distanceResidual() { return distres; }
       double &stdResidual() { return stdres; }
+      double &probError() { return proberr; }
 
    private:
       string id;
@@ -68,8 +69,10 @@ class ControlPoint {
       double dxy[2];
       double cxy[2];  /* Calculated value */
       double distres;
+      double calcerr;
       double stdres;
       double error;
+      double proberr;
       bool rejected;
       bool unused;
       bool isnode;

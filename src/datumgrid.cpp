@@ -601,6 +601,8 @@ int main( int argc, char *argv[] ) {
       for( int i = 0; i < ControlPointClass::count(); i++ ) {
          ControlPointClass::classNumber(i)->clearSumStdRes();
          }
+       double maxres=0.0;
+       double maxstdres=0.0;
        {
           string outputfile;
           outputfile = rootfilename + "_cpt.csv";
@@ -615,7 +617,7 @@ int main( int argc, char *argv[] ) {
           if( ! heightGrid ) cptfile << "calc" << param.dycolname << ",";
           cptfile << "res" << param.dxcolname << ",";
           if( ! heightGrid ) cptfile << "res" << param.dycolname << "," << "residual,";
-          cptfile << "stdres,class,error,used\n";
+          cptfile << "stdres,class,error,proberr,used\n";
 
           for( long i = 0; i < points.size(); i++ ) {
              ControlPoint &cpt = * points[i];
@@ -631,12 +633,27 @@ int main( int argc, char *argv[] ) {
              cptfile << cpt.stdResidual() << ",\"";
              cptfile << cpt.getClass().getName() << "\",";
              cptfile << cpt.getError() << "," ;
+             cptfile << cpt.probError() << "," ;
              cptfile << (cpt.isRejected() ? 0 : 1) <<  endl;
              cpt.getClass().addStdRes( cpt.stdResidual(), cpt.isRejected() ? 0 : cpt.isNode() ? 2 : 1 );
+             if( ! cpt.isRejected() )
+             {
+                 if(cpt.stdResidual() > maxstdres )
+                 {
+                     maxstdres=cpt.stdResidual();
+                 }
+                 if( cpt.distanceResidual() > maxres )
+                 {
+                     maxres=cpt.distanceResidual();
+                 }
+             }
              }
           }
 
-       if( 1 ){
+       logfile << "Max used residual: " << FixedFormat(param.ndpValue) << maxres << endl;
+       logfile << "Max used std res: " << FixedFormat(param.ndpValue) << maxstdres << endl;
+
+       if( 0 ){
           logfile << "Summary of residuals by class\n";
           for( int i = 0; i < ControlPointClass::count(); i++ ) {
              ControlPointClass &cpc = *ControlPointClass::classNumber(i);

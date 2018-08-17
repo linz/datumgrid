@@ -96,7 +96,7 @@ ControlPoint::ControlPoint( const string &id, double x, double y, double dx, dou
    id(id), ptclass( ControlPointClass::named(ptclass)) {
    xy[0] = x; xy[1] = y;
    dxy[0] = dx; dxy[1] = dy;
-   cxy[0] = cxy[1] = distres = stdres = 0.0;
+   cxy[0] = cxy[1] = distres = stdres = proberr=0.0;
    error = 0.0;
    rejected = false;
    unused = false;
