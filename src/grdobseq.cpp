@@ -462,7 +462,9 @@ void calcControlPointResidual( Grid &grd, ControlPoint &cp, GridInterpolator &gi
         double proberr=0.0;
         if( cp.stdResidual() > 0.0 )
         {
-            proberr=cp.distanceResidual()*cp.distanceResidual()/(cp.getError()*cp.stdResidual());
+            // ratio=obserr/residualerror
+            double ratio=cp.getError()/(cp.distanceResidual()/cp.stdResidual());
+            proberr=cp.distanceResidual()*(ratio*ratio);
         }
         cp.probError()=proberr;
     }
